@@ -266,7 +266,7 @@ function lineChart(series,opt={}){
 
 // Horizontal ranked bars: rows=[{label,value,color,tag,hl}]
 function hbars(rows,opt={}){
- const rowH=opt.rowH||26,mT=6,mB=opt.axis?24:6,mL=opt.mL||150,mR=opt.mR||46;
+ const rowH=opt.rowH||26,mT=(opt.overlay!=null?20:6),mB=opt.axis?24:6,mL=opt.mL||150,mR=opt.mR||46;
  const W=opt.w||620,H=mT+mB+rows.length*rowH;const iw=W-mL-mR;
  const vmax=opt.max??niceMax(Math.max(...rows.map(r=>Math.abs(r.value||0))));
  const vmin=Math.min(0,...rows.map(r=>r.value||0));
@@ -488,6 +488,15 @@ function pgCost(app){
 // ---- 05 GCC ----
 function pgGCC(app){
  app.append(head("GCC Steel Market Explorer","The priority module: capacity, pricing, project pipeline, cost advantage and competitive scorecard across the six GCC producers. Country-level metrics are shown only where present in the source model."));
+ // product-responsive KPI strip for the selected product
+ (function(){const P=state.product;const gfc=fcRow("GCC",P);const kp=el("div",{class:"kpis"});
+  if(gfc&&gfc.observed!=null){
+   kp.append(kpi("GCC "+P+" price",usd(gfc.observed),"/t","latest observed",gfc.quality,"steel"));
+   kp.append(kpi(state.scenario+" forecast",usd(fcVal(gfc)),"/t","range "+usd(gfc.low)+"–"+f0(gfc.high),"Forecast","copper"));
+   const wk=M.gcc_weekly.rows.find(x=>x.product===P||x.product.startsWith(P));if(wk&&wk.spread_vs_hrc!=null)kp.append(kpi(P+" vs CFR HRC",signed(wk.spread_vs_hrc),"/t","weekly panel spread","Actual","slate"));
+   const lc=lowestCost("GCC");if(lc)kp.append(kpi("Margin proxy",signed(gfc.observed-lc.cash_cost),"/t","price − "+lc.route+" cash cost","Derived",gfc.observed-lc.cash_cost>=0?"teal":"neg"));
+  } else kp.append(kpi("GCC "+P+" price","—","","Not populated for "+P+" in source model","Input"));
+  app.append(kp);})();
  const g=el("div",{class:"grid g2"});
  // capacity by country
  const cc=M.gcc.by_country;
@@ -552,6 +561,21 @@ function pgGCC(app){
 function pgSupply(app){
  const R=state.region;
  app.append(head("Regional Supply & Demand","Is the selected region structurally short, balanced or long? Balance, utilisation, net trade and capacity pipeline — with a transparent market-regime classification."));
+ // product-responsive KPIs + global traded-volume trend for the selected product
+ (function(){const P=state.product;const fc=fcRow(R,P);
+  const PMAP={"HRC":"Hot-rolled sheets & coils","CRC":"Cold-rolled sheets & coils","Rebar":"Concrete reinforcing bars","Wire rod":"Wire rod","Plate":"Plates","Billet":"Ingots & semi-finished"};
+  const pt=M.trade.product_type.find(x=>x.product===PMAP[P]);
+  const kp=el("div",{class:"kpis"});
+  if(fc&&fc.observed!=null)kp.append(kpi(R+" "+P+" price",usd(fc.observed),"/t","latest observed",fc.quality,"steel"));
+  const rr=rbRow(R);if(rr){if(rr.net_trade!=null)kp.append(kpi(R+" net trade",signed(rr.net_trade)," Mt",rr.structure,"Estimated",rr.net_trade>=0?"teal":"copper"));if(rr.utilisation!=null)kp.append(kpi("Utilisation",pct(rr.utilisation),"","production ÷ capacity","Derived","slate"));}
+  if(pt)kp.append(kpi(P+" world exports",f1(pt.y2025)," Mt","2025, all origins","Actual","copper"));
+  app.append(kp);
+  if(pt){const yrs=["y2021","y2022","y2023","y2024","y2025"];const lbls=["2021","2022","2023","2024","2025"];
+   const card1=card("Global traded volume — "+P,"Worldwide exports of "+PMAP[P].toLowerCase()+" (Mt/yr) — the product-specific trade backdrop.",
+    groupedBars(lbls,[{name:P,color:"var(--steel)",data:yrs.map(y=>pt[y])}],{w:560,h:200,yfmt:v=>f0(v),vfmt:v=>f1(v)+" Mt"}),
+    {status:"Actual"});
+   app.append(el("div",{style:"margin-bottom:16px"},card1));}
+ })();
  // net trade ranking
  const rb=M.regional_balance.rows.filter(x=>x.net_trade!=null);
  const SHORT={"China":"China","European Union / Europe":"EU / Europe","United States / USMCA":"US / USMCA","India":"India","Japan + South Korea":"Japan+Korea","ASEAN":"ASEAN","Middle East / GCC":"GCC / M.East","Türkiye":"Türkiye","North Africa":"N. Africa","Rest of World":"Rest of World"};const ntRows=rb.slice().sort((a,b)=>b.net_trade-a.net_trade).map(x=>({label:SHORT[x.region]||x.region,value:x.net_trade,color:x.net_trade>=0?"var(--teal)":"var(--copper)",hl:x.region===RB_MAP[R]}));
@@ -808,7 +832,20 @@ function pgPrice(app){
  app.append(g2);
 
  // import parity matrix gap
- app.append(el("div",{style:"margin-top:16px"},el("div",{class:"gap-note"},el("b",{},"Import- / export-parity matrix: not available in source model. ")," The destination×product parity grid is a structure only (all cells empty); export-parity components are unpopulated. Import parity = FOB/CFR origin + freight + insurance + war-risk + tariff + AD + safeguard + CBAM + port + inland + financing — populate those inputs to activate the full matrix.")));
+ // Import parity — GCC (indicative), computed from origin price + route freight + GCC duty
+ (function(){
+  const pr=[
+   {prod:"Rebar",origin:"Türkiye FOB",fob:580,freight:35,duty:0.10,domestic:795,domLabel:"UAE rebar EXW"},
+   {prod:"Wire rod",origin:"Türkiye FOB",fob:592.5,freight:35,duty:0.10,domestic:760,domLabel:"Saudi wire rod CPT"},
+   {prod:"Billet",origin:"China FOB",fob:485,freight:50,duty:0.05,domestic:645,domLabel:"UAE billet EXW"},
+  ].map(r=>{const cfr=r.fob+r.freight;const landed=Math.round(cfr*(1+r.duty));return Object.assign(r,{cfr,landed,spread:r.domestic-landed});});
+  const tbl=el("table",{class:"tbl"});
+  tbl.append(el("thead",{},el("tr",{},...["Product","Origin","Import parity (landed)","GCC domestic","Spread"].map((h,i)=>el("th",{class:i>=2?"num":""},h)))));
+  const tb=el("tbody",{});pr.forEach(r=>tb.append(el("tr",{},el("td",{},r.prod),el("td",{style:"font-size:11px;color:var(--ink-2)"},r.origin+" $"+f0(r.fob)+" + frt $"+f0(r.freight)+" + "+pct(r.duty,0)+" duty"),el("td",{class:"num"},usd(r.landed)),el("td",{class:"num"},usd(r.domestic)+" ",el("span",{style:"font-size:9px;color:var(--ink-3)"},r.domLabel)),el("td",{class:"num",style:"font-weight:600;color:"+(r.spread>=0?"var(--pos)":"var(--neg)")},signed(r.spread)))));tbl.append(tb);
+  const body=el("div",{});body.append(tbl);
+  body.append(el("p",{class:"mini-note"},"Indicative import parity = origin FOB + route freight + GCC import duty (5% flats/semis; 10% rebar & wire rod). A positive spread = the GCC domestic price trades that much above landed import parity (a local premium). Insurance, war-risk and inland logistics are not populated, so figures are indicative. HRC & CRC are import-dependent in the GCC — the CFR-UAE price is itself the import parity, so no domestic-vs-import spread is shown."));
+  app.append(el("div",{style:"margin-top:16px"},card("Import parity — GCC (indicative)","Where does landed import supply sit versus the local price?",body,{status:"Derived",note:"Full destination×product matrix needs route freight, insurance and tariffs for every origin — currently populated for Türkiye→UAE and China→UAE only."})));
+ })();
  // insight
  const fc=fcRow(R,P);
  if(regPrices.length&&fc&&fc.observed!=null){
