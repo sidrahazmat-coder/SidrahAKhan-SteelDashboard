@@ -5,35 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Steel Market Intelligence Terminal — Global Steel Pricing Framework</title>
 <style>
-/* ===== TECHNICAL CONSOLE THEME — dark default ===== */
+/* ===== Light = white institutional (default) · Dark = charcoal grey console ===== */
 :root{
-  /* neutral dark-grey instrument surfaces */
-  --surface-0:#2f343a; --surface-1:#373d44; --surface-2:#40464e; --surface-3:#4c535b;
-  --ink:#f0f2f4; --ink-2:#bcc3ca; --ink-3:#8b939b; --line:#454c55; --line-2:#545c66;
-  /* validated categorical data accents (dark, CVD-safe on grey surface) */
-  --steel:#3690d8; --steel-soft:#14304a; --copper:#bf8225; --copper-soft:#3a2b12;
-  --teal:#1fa87f; --teal-soft:#123029; --gold:#cfa14e; --slate:#7d8fd6; --plum:#c76d95;
-  --pos:#33c48a; --neg:#e35d62; --sand:#b8a37a;
-  --actual:#3690d8; --forecast:#bf8225;
-  --grid-glow:rgba(54,144,216,.06);
-  --shadow:0 1px 2px rgba(0,0,0,.4),0 2px 14px rgba(0,0,0,.3);
+  --surface-0:#f7f5f1; --surface-1:#ffffff; --surface-2:#f1ede6; --surface-3:#e9e4da;
+  --ink:#1c1b19; --ink-2:#54514b; --ink-3:#8a857c; --line:#e2ddd3; --line-2:#d3ccbe;
+  --steel:#256aa8; --steel-soft:#dceaf6; --copper:#c15a25; --copper-soft:#f5e2d6;
+  --teal:#2f9273; --teal-soft:#d9ede6; --gold:#b8892e; --slate:#5b6b8c; --plum:#6b4f7a;
+  --pos:#2f7d53; --neg:#b23b3b; --sand:#c9b896;
+  --actual:#256aa8; --forecast:#c15a25;
+  --shadow:0 1px 2px rgba(28,27,25,.05),0 2px 8px rgba(28,27,25,.04);
   --mono:"SF Mono",ui-monospace,"Roboto Mono",Menlo,Consolas,monospace;
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
 }
-html[data-theme="light"]{
-  /* neutral grey console (light engine) */
-  --surface-0:#c3c8cd; --surface-1:#d3d7db; --surface-2:#bcc1c6; --surface-3:#adb3b9;
-  --ink:#141b22; --ink-2:#3f4952; --ink-3:#65707a; --line:#b0b6bc; --line-2:#9fa6ad;
-  /* validated categorical data accents (light, CVD-safe on #ffffff) */
-  --steel:#1f6fb8; --steel-soft:#e1eef8; --copper:#a06a12; --copper-soft:#f6ecd9;
-  --teal:#0f7d5f; --teal-soft:#dcefe8; --gold:#a06a12; --slate:#4a5da8; --plum:#a24d7a;
-  --pos:#178a54; --neg:#c23b41; --sand:#c9b896;
-  --actual:#1f6fb8; --forecast:#a06a12;
-  --grid-glow:rgba(31,111,184,.04);
-  --shadow:0 1px 2px rgba(16,24,32,.06),0 2px 8px rgba(16,24,32,.05);
+html[data-theme="dark"]{
+  /* charcoal grey console */
+  --surface-0:#2f343a; --surface-1:#373d44; --surface-2:#40464e; --surface-3:#4c535b;
+  --ink:#f0f2f4; --ink-2:#bcc3ca; --ink-3:#8b939b; --line:#454c55; --line-2:#545c66;
+  --steel:#3690d8; --steel-soft:#14304a; --copper:#bf8225; --copper-soft:#3a2b12;
+  --teal:#1fa87f; --teal-soft:#123029; --gold:#cfa14e; --slate:#7d8fd6; --plum:#c76d95;
+  --pos:#33c48a; --neg:#e35d62; --actual:#3690d8; --forecast:#bf8225;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 2px 12px rgba(0,0,0,.28);
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--surface-0);background-image:linear-gradient(var(--grid-glow) 1px,transparent 1px),linear-gradient(90deg,var(--grid-glow) 1px,transparent 1px);background-size:44px 44px;color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body{margin:0;background:var(--surface-0);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
 h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.01em}
 a{color:var(--steel);text-decoration:none}
 .mono{font-family:var(--mono)}
@@ -101,12 +95,12 @@ button{font-family:inherit;cursor:pointer}
 .kpi .k-tag{position:absolute;top:10px;right:11px}
 .tag{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 6px;border-radius:4px;white-space:nowrap}
 .tag.Actual{background:var(--steel-soft);color:var(--steel)}
-.tag.Estimated{background:#3a2f18;color:var(--gold)}
-html[data-theme="light"] .tag.Estimated{background:#efe7d6}
+.tag.Estimated{background:#efe7d6;color:var(--gold)}
+html[data-theme="dark"] .tag.Estimated{background:#3a2f18}
 .tag.Derived{background:var(--teal-soft);color:var(--teal)}
 .tag.Scenario,.tag.Forecast{background:var(--copper-soft);color:var(--copper)}
-.tag.Input{background:#2f353c;color:var(--ink-3)}
-html[data-theme="light"] .tag.Input{background:#eee}
+.tag.Input{background:#eee;color:var(--ink-3)}
+html[data-theme="dark"] .tag.Input{background:#454c55}
 .up{color:var(--pos)}.down{color:var(--neg)}
 
 /* insight */
@@ -133,8 +127,8 @@ table.tbl td.num,table.tbl th.num{text-align:right}
 .pill{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:20px}
 .pill.Exporter,.pill.Tightening{background:var(--teal-soft);color:var(--teal)}
 .pill.Importer,.pill.Oversupplied{background:var(--copper-soft);color:var(--copper)}
-.pill.Balanced{background:#2f353c;color:var(--ink-2)}
-html[data-theme="light"] .pill.Balanced{background:#eee}
+.pill.Balanced{background:#eee;color:var(--ink-2)}
+html[data-theme="dark"] .pill.Balanced{background:#454c55}
 .gap-note{background:var(--surface-2);border:1px dashed var(--line-2);border-radius:8px;padding:12px 14px;color:var(--ink-2);font-size:12.5px;line-height:1.5}
 .gap-note b{color:var(--ink)}
 svg .grid-line{stroke:var(--line);stroke-width:1}
@@ -153,7 +147,7 @@ svg .axis-label{fill:var(--ink-3);font-size:10px}
 <body>
 <div class="masthead">
   <div class="mast-top">
-    <svg class="mast-mark" viewBox="0 0 40 40" fill="none"><rect x="2" y="22" width="7" height="16" rx="1.5" fill="var(--steel)"/><rect x="11" y="14" width="7" height="24" rx="1.5" fill="var(--slate)"/><rect x="20" y="8" width="7" height="30" rx="1.5" fill="var(--copper)"/><rect x="29" y="17" width="7" height="21" rx="1.5" fill="var(--teal)"/><path d="M5.5 20 L14.5 12 L23.5 6 L32.5 15" stroke="var(--ink-3)" stroke-width="1.4" fill="none" opacity=".55"/></svg>
+    <svg class="mast-mark" viewBox="0 0 40 40" fill="none"><rect x="2" y="22" width="7" height="16" rx="1.5" fill="var(--steel)"/><rect x="11" y="14" width="7" height="24" rx="1.5" fill="var(--slate)"/><rect x="20" y="8" width="7" height="30" rx="1.5" fill="var(--copper)"/><rect x="29" y="17" width="7" height="21" rx="1.5" fill="var(--teal)"/><path d="M5.5 20 L14.5 12 L23.5 6 L32.5 15" stroke="var(--ink-3)" stroke-width="1.4" fill="none" opacity=".4"/></svg>
     <div>
       <div class="mast-title">Steel Market Intelligence Terminal</div>
       <div class="mast-sub">Global Steel Physical Balance &amp; Pricing Framework · Issue 02</div>
