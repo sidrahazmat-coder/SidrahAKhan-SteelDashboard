@@ -194,9 +194,9 @@ svg .axis-label{fill:var(--ink-3);font-size:10px}
 </div>
 
 <div class="controls" id="controls">
-  <div class="ctrl"><label>Product</label><select id="selProduct"></select></div>
-  <div class="ctrl"><label>Region / Market</label><select id="selRegion"></select></div>
-  <div class="ctrl"><label>Scenario</label><div class="seg" id="segScenario"></div></div>
+  <div class="ctrl" id="ctrlProduct"><label>Product</label><select id="selProduct"></select></div>
+  <div class="ctrl" id="ctrlRegion"><label>Region / Market</label><select id="selRegion"></select></div>
+  <div class="ctrl" id="ctrlScenario"><label>Scenario</label><div class="seg" id="segScenario"></div></div>
   <div class="ctrl" id="ctrlPeriod"><label>Price period</label><div class="seg" id="segPeriod"></div></div>
   <div class="ctrl" id="ctrlLens"><label>Lens</label><div class="seg" id="segLens"></div></div>
   <button class="reset-btn" id="csvBtn" title="Download this page's data (respects filters) as CSV">⭳ CSV</button>
@@ -477,6 +477,21 @@ const PAGES=[
 ];
 
 function head(h,p){return el("div",{class:"page-head"},el("h2",{},h),el("p",{},p));}
+// which control(s) each page actually reads — everything else is hidden on that page
+const PAGE_CTRLS={
+ pulse:["period","lens"],
+ overview:["product","region","scenario","period"],
+ price:["product","region","scenario","period"],
+ cost:["product","region"],
+ trade:[],
+ gcc:["product","scenario"],
+ supply:["product","region"],
+ buyer:["period","lens"],
+ forecast:["product","region","scenario","period"],
+ scenarios:["product","region","scenario"],
+ investor:["product","region"],
+ method:[],
+};
 
 // ---- 01 OVERVIEW ----
 function pgOverview(app){
@@ -1366,9 +1381,14 @@ function render(){
  $$("#segPeriod button").forEach(b=>b.classList.toggle("active",b.textContent===state.period));
  $$("#segLens button").forEach(b=>b.classList.toggle("active",b.textContent===state.lens));
  const app=$("#app");app.innerHTML="";const page=el("div",{class:"page"});app.append(page);
- // period selector only relevant on pages using history
- $("#ctrlPeriod").style.display=["overview","forecast","pulse"].includes(state.page)?"":"none";
- $("#ctrlLens").style.display=["pulse","buyer"].includes(state.page)?"":"none";
+ // show only the controls each page actually uses
+ const show=PAGE_CTRLS[state.page]||["product","region","scenario","period"];
+ $("#ctrlProduct").style.display=show.includes("product")?"":"none";
+ $("#ctrlRegion").style.display=show.includes("region")?"":"none";
+ $("#ctrlScenario").style.display=show.includes("scenario")?"":"none";
+ $("#ctrlPeriod").style.display=show.includes("period")?"":"none";
+ $("#ctrlLens").style.display=show.includes("lens")?"":"none";
+ $("#scnBadge").style.display=show.includes("scenario")?"":"none";
  PAGE_EXPORT=null;
  PAGES.find(p=>p.id===state.page).fn(page);
  const cb=$("#csvBtn");cb.style.display=PAGE_EXPORT&&PAGE_EXPORT.rows.length?"":"none";if(PAGE_EXPORT)cb.title="Download “"+PAGE_EXPORT.name+".csv” — "+PAGE_EXPORT.rows.length+" rows (this page, current filters)";
