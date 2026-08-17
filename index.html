@@ -204,6 +204,7 @@ const f1=v=>v==null?"–":(+v).toLocaleString(undefined,{minimumFractionDigits:1
 const usd=v=>v==null?"–":"$"+f0(v);
 const pct=(v,d=1)=>v==null?"–":(v*100).toFixed(d)+"%";
 const signed=v=>v==null?"–":(v>=0?"+":"")+f0(v);
+const pctS=(v,d=1)=>v==null?"–":(v>=0?"+":"")+(v*100).toFixed(d)+"%"; // signed percentage
 
 // ---------- state ----------
 const REGIONS=["GCC","China","Europe","United States","India","ASEAN","Türkiye"];
@@ -228,6 +229,19 @@ function priceSeries(P){
 }
 const HRC_JOIN=2025+(10-1)/12; // Oct 2025 boundary
 const fcVal=(row)=>{if(!row)return null;return row[scnKey(state.scenario)]??row.base;};
+// benchmark % returns over standard windows, from the real monthly series
+function benchReturns(P){
+ if(!M.price_history.products.includes(P))return null;
+ const s=priceSeries(P).filter(d=>d.y!=null);if(s.length<2)return null;
+ const last=s.at(-1);
+ const at=n=>{const tx=last.x-n;let best=null,bd=1e9;for(const d of s){const dd=Math.abs(d.x-tx);if(dd<bd){bd=dd;best=d;}}return best;};
+ const r=n=>{const b=at(n);return b&&b.y?last.y/b.y-1:null;};
+ const m1=s.at(-2);
+ return {last,first:s[0],mom:m1&&m1.y?last.y/m1.y-1:null,y1:r(1),y3:r(3),y5:r(5),full:s[0].y?last.y/s[0].y-1:null};
+}
+const retSpan=(v,d=1)=>el("span",{class:v==null?"":(v>=0?"up":"down")},pctS(v,d));
+// global_balance line -> [{x:year,y:value}], skipping blanks/zeros
+function gbSeries(name){const gb=M.global_balance;const r=gb.rows.find(x=>x.line.toLowerCase().includes(name.toLowerCase()));if(!r)return[];return gb.years.map(y=>({x:y,y:r.values[String(y)]})).filter(d=>d.y!=null&&d.y!==0);}
 
 // ---------- tooltip ----------
 const tip=$("#tip");
@@ -455,6 +469,8 @@ function pgOverview(app){
  } else {
   kp.append(kpi("Latest observed price","—","","Not available in source model for "+P+" · "+R,"Input"));
  }
+ const ret0=benchReturns(P);
+ if(ret0&&ret0.y1!=null)kp.append(kpi(P+" benchmark YoY",pctS(ret0.y1),"","now "+usd(ret0.last.y)+"/t · FOB China · MoM "+pctS(ret0.mom),"Actual",ret0.y1>=0?"teal":"neg"));
  if(lc){kp.append(kpi("Route cash-cost floor",usd(lc.cash_cost),"/t",lc.route+" · lowest of "+costRows(R).length+" routes","Derived","teal"));
   if(fc&&fc.observed!=null){const mg=fc.observed-lc.cash_cost;kp.append(kpi("Margin proxy",signed(mg),"/t","price − "+lc.route+" cash cost","Derived",mg>=0?"teal":"neg"));}}
  if(rb){if(rb.utilisation!=null)kp.append(kpi("Capacity utilisation",pct(rb.utilisation),"","production ÷ capacity, 2024","Derived","slate"));
@@ -496,6 +512,8 @@ function pgOverview(app){
    el("span",{class:mom>=0?"up":"down"},signed(mom)+"/t"),", YoY ",
    el("span",{class:yoy>=0?"up":"down"},signed(yoy)+"/t"),
    extended?". Series to Sep 2025, then Argus HRC FOB China — same basis.":". Global benchmark."));
+  const ret=benchReturns(P);
+  if(ret)trendBody.append(el("p",{class:"mini-note",style:"margin-top:6px"},el("b",{},"Returns: "),"1Y ",retSpan(ret.y1)," · 3Y ",retSpan(ret.y3)," · 5Y ",retSpan(ret.y5)," · since "+ret.first.year+" ",retSpan(ret.full)));
  } else trendBody.append(el("div",{class:"gap-note"},"No monthly benchmark history for "+P+" — the benchmark series covers HRC, CRC, HDG, OCS, Tinplate and Rebar only."));
  g.append(card("Benchmark price trend","HRC on one FOB-China line: workbook benchmark to Sep 2025, Argus thereafter.",trendBody,{src:" · Argus HRC FOB China",status:"Actual",note:P==="HRC"?"Two assessors, one FOB-China basis — spliced at Oct 2025.":"Global benchmark."}));
  app.append(g);
@@ -509,14 +527,31 @@ function pgOverview(app){
  } else g2.append(insight("Populated price and cost inputs are not both available for "+P+" · "+R+" in this model version, so a quantified interpretation is withheld rather than estimated."));
  // what changed
  const wc=el("div",{});const mp2=M.price_history;
- if(mp2.products.includes(P)){const rows=mp2.rows;const last=rows.at(-1),m1=rows.at(-2),y1=rows.at(-13);
-  wc.append(el("p",{style:"margin:0 0 8px;font-size:13px"},"Versus the prior periods on the global benchmark:"));
+ if(mp2.products.includes(P)){const full=priceSeries(P).filter(d=>d.y!=null);const last=full.at(-1),m1=full.at(-2),y1=full.at(-13);
+  wc.append(el("p",{style:"margin:0 0 8px;font-size:13px"},"Versus prior periods on the "+P+" benchmark (latest "+last.year+"-"+String(last.month).padStart(2,"0")+"):"));
   const ul=el("div",{});
-  [["Month on month",last[P]-m1[P]],["Year on year",last[P]-y1[P]]].forEach(([k,v])=>{ul.append(el("div",{style:"display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);font-size:13px"},el("span",{},k),el("b",{class:v>=0?"up":"down"},signed(v)+" /t")));});
-  wc.append(ul);wc.append(el("p",{class:"mini-note"},"Change in delivered parity and freight cannot be quantified — those components are not populated in the source model."));
+  [["Month on month",last.y-m1.y,m1.y],["Year on year",last.y-y1.y,y1.y]].forEach(([k,v,base])=>{const p=base?v/base:null;ul.append(el("div",{style:"display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--line);font-size:13px"},el("span",{},k),el("b",{class:v>=0?"up":"down"},signed(v)+" /t · "+pctS(p))));});
+  wc.append(ul);wc.append(el("p",{class:"mini-note"},"Delivered parity and freight change cannot be quantified — those components are not populated in the source model."));
   g2.append(card("What changed?",null,wc,{src:"",status:"Actual"}));
  }
  app.append(g2);
+ app.append(el("div",{style:"margin-top:16px"},demandPulseCard()));
+}
+// global apparent-use trajectory + China driver (shared by Overview & Supply)
+function demandPulseCard(){
+ const au=gbSeries("apparent steel use");if(!au.length)return el("div");
+ const china=gbSeries("china apparent steel use");
+ const boundary=2025;
+ const auA=au.filter(d=>d.x<=boundary),auF=au.filter(d=>d.x>=boundary);
+ const last=au.find(d=>d.x===2025)||au.at(-1);const y24=au.find(d=>d.x===2024);const peak=au.reduce((a,b)=>b.y>a.y?b:a);const end=au.at(-1);
+ const yoy=y24?last.y/y24.y-1:null;const fromPeak=peak&&peak.x!==last.x?last.y/peak.y-1:null;
+ const b=el("div",{});
+ b.append(legendEl([{color:"var(--slate)",line:true,label:"Apparent steel use (actual)"},{dash:true,label:"Model forecast"}]));
+ b.append(lineChart([{name:"use",color:"var(--slate)",area:true,data:auA},{name:"useF",color:"var(--slate)",dashed:true,data:auF}],{w:600,h:210,xticks:[2020,2022,2024,2026,2028,2030].map(y=>({x:y,label:y})),xlabel:x=>Math.round(x),yfmt:v=>f0(v)+"Mt",ymin:1550,vline:{x:2025.5,label:"fc →"}}));
+ const dir=yoy>0.003?"rising":yoy<-0.003?"falling":"broadly flat";
+ b.append(el("p",{class:"mini-note"},"Global apparent steel use is "+f0(last.y)+" Mt in 2025 — "+dir+" (",retSpan(yoy)," YoY), and ",retSpan(fromPeak)," versus the "+peak.x+" peak of "+f0(peak.y)+" Mt. The model carries a gradual recovery to "+f0(end.y)+" Mt by "+end.x+" (~+0.5%/yr)."));
+ if(china.length){const cf=china[0],cl=china.at(-1);b.append(el("p",{class:"mini-note"},el("b",{},"Dominant driver — China: "),"apparent use fell from "+f0(cf.y)+" Mt ("+cf.x+") to "+f0(cl.y)+" Mt ("+cl.x+"), ",retSpan(cl.y/cf.y-1),". China is roughly 45% of world use, so its contraction sets the global demand trend; the recovery elsewhere only partly offsets it."));}
+ return card("Global steel-demand pulse","Is demand growing or shrinking? Apparent-use trajectory with the model's forward path, and the dominant driver.",b,{status:"Estimated",note:"Reflects the model build (workbook + Argus to Aug 2026), not a live external feed. 2026–30 = scenario forecast."});
 }
 
 // ---- 03 COST CURVE ----
@@ -651,10 +686,11 @@ function pgSupply(app){
   if(pt)kp.append(kpi(P+" world exports",f1(pt.y2025)," Mt","2025, all origins","Actual","copper"));
   app.append(kp);
   if(pt){const yrs=["y2021","y2022","y2023","y2024","y2025"];const lbls=["2021","2022","2023","2024","2025"];
-   const card1=card("Global traded volume — "+P,"Worldwide exports of "+PMAP[P].toLowerCase()+" (Mt/yr) — the product-specific trade backdrop.",
-    groupedBars(lbls,[{name:P,color:"var(--steel)",data:yrs.map(y=>pt[y])}],{w:560,h:200,yfmt:v=>f0(v),vfmt:v=>f1(v)+" Mt"}),
-    {status:"Actual"});
-   app.append(el("div",{style:"margin-bottom:16px"},card1));}
+   const yoy=pt.y2024?pt.y2025/pt.y2024-1:null;const cagr=pt.y2021?Math.pow(pt.y2025/pt.y2021,1/4)-1:null;
+   const vBody=el("div",{});
+   vBody.append(groupedBars(lbls,[{name:P,color:"var(--steel)",data:yrs.map(y=>pt[y])}],{w:560,h:200,yfmt:v=>f0(v),vfmt:v=>f1(v)+" Mt"}));
+   vBody.append(el("p",{class:"mini-note"},"World exports of "+PMAP[P].toLowerCase()+": 2025 "+f1(pt.y2025)+" Mt — ",retSpan(yoy)," YoY, 4-yr CAGR ",retSpan(cagr),". ",el("b",{},"2026: ")," the trade table is annual and stops at 2025 (no year-to-date), so a current-run-rate close for 2026 can't be computed here without fabricating it — share 2026 YTD export volumes and I'll annualise them."));
+   app.append(el("div",{style:"margin-bottom:16px"},card("Global traded volume — "+P,"Worldwide exports of "+PMAP[P].toLowerCase()+" (Mt/yr), with year-on-year momentum.",vBody,{status:"Actual",note:"Per-product trade is annual; 2026 not populated in the source model."})));}
  })();
  // net trade ranking
  const rb=M.regional_balance.rows.filter(x=>x.net_trade!=null);
@@ -720,9 +756,20 @@ function pgSupply(app){
  g3.append(card("Global balance 2015–2030","Crude production and apparent use; 2026–30 forecast dashed.",
   (()=>{const b=el("div",{});b.append(legendEl([{color:"var(--steel)",line:true,label:"Production (actual)"},{dash:true,label:"Forecast"},{color:"var(--slate)",line:true,label:"Apparent use"}]));
   const prA=pr.filter(d=>d.x<=fyIdx),prF=pr.filter(d=>d.x>=fyIdx),usA=us.filter(d=>d.x<=fyIdx),usF=us.filter(d=>d.x>=fyIdx);
-  b.append(lineChart([{name:"Production",color:"var(--steel)",data:prA},{name:"ProdF",color:"var(--steel)",data:prF,dashed:true},{name:"Use",color:"var(--slate)",data:usA},{name:"UseF",color:"var(--slate)",data:usF,dashed:true}],{w:560,h:220,xticks:[2015,2020,2025,2030].map(y=>({x:y,label:y})),xlabel:x=>Math.round(x),yfmt:v=>f0(v)+"Mt",ymin:1400}));return b;})(),
+  b.append(lineChart([{name:"Production",color:"var(--steel)",data:prA},{name:"ProdF",color:"var(--steel)",data:prF,dashed:true},{name:"Use",color:"var(--slate)",data:usA},{name:"UseF",color:"var(--slate)",data:usF,dashed:true}],{w:560,h:220,xticks:[2015,2020,2025,2030].map(y=>({x:y,label:y})),xlabel:x=>Math.round(x),yfmt:v=>f0(v)+"Mt",ymin:1400}));
+  const p25=prod.values["2025"],p26=prod.values["2026"],u25=use.values["2025"],u26=use.values["2026"];
+  if(p26&&u26)b.append(el("p",{class:"mini-note"},el("b",{},"Expected 2026 close (model): "),"production "+f0(p26)+" Mt (",retSpan(p26/p25-1)," vs 2025), apparent use "+f0(u26)+" Mt (",retSpan(u26/u25-1),"). Scenario forecast — not a run-rate from 2026 actuals."));
+  return b;})(),
   {src:"",status:"Actual",note:"2026–30 = scenario forecast."}));
  app.append(g3);
+
+ // demand direction & drivers (answers: is demand growing or shrinking, and why)
+ (function(){const au=gbSeries("apparent steel use");if(!au.length)return;const china=gbSeries("china apparent steel use");
+  const last=au.find(d=>d.x===2025)||au.at(-1),y24=au.find(d=>d.x===2024),peak=au.reduce((a,b)=>b.y>a.y?b:a);
+  const yoy=y24?last.y/y24.y-1:null;const dir=yoy>0.003?"rising":yoy<-0.003?"falling":"broadly flat after a multi-year decline";
+  const cTxt=china.length?" The dominant factor is China, where apparent use fell "+pctS(china.at(-1).y/china[0].y-1)+" from "+china[0].x+" to "+china.at(-1).x+" ("+f0(china[0].y)+"→"+f0(china.at(-1).y)+" Mt); demand outside China is firmer, and the model assumes a shallow ~0.5%/yr recovery through 2030.":"";
+  app.append(el("div",{style:"margin-top:16px"},insight("Global apparent steel use is "+f0(last.y)+" Mt in 2025 — "+dir+" ("+pctS(yoy)+" YoY, "+pctS(last.y/peak.y-1)+" below the "+peak.x+" peak of "+f0(peak.y)+" Mt)."+cTxt,"Apparent use is an estimated balance item and 2026–30 are scenario forecasts, not live external data.")));
+ })();
 }
 function trRow(k,v){return el("tr",{},el("td",{style:"color:var(--ink-2)"},k),el("td",{class:"num",style:"font-weight:600"},v));}
 
@@ -984,7 +1031,7 @@ function pgTrade(app){
   list.forEach(x=>{col.append(el("div",{style:"display:flex;align-items:center;gap:6px;margin:3px 0;font-size:11.5px"},el("span",{style:"width:88px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"},x.name),el("span",{class:"bar-track",style:"flex:1"},el("span",{class:"bar-fill",style:"width:"+(x.mt/mx*100)+"%;background:"+c})),el("span",{style:"width:38px;text-align:right;font-variant-numeric:tabular-nums"},f1(x.mt))));});
   twoList.append(col);
  });
- g.append(card("Top exporters & importers 2025","Largest finished-steel traders (Mt).",twoList,{src:"",status:"Actual"}));
+ g.append(card("Top exporters & importers 2025","Largest finished-steel traders (Mt).",twoList,{src:"",status:"Actual",note:"2025 levels only — country-level year-on-year growth is not populated in the source model; product-category momentum is shown below."}));
 
  // freight routes (populated only)
  const fr=M.freight?M.freight:null;
@@ -1022,6 +1069,21 @@ function pgTrade(app){
   hbars(pt.map(x=>({label:x.product,value:x.y2025,color:"var(--steel)"})),{w:520,mL:180,vfmt:v=>f1(v)}),
   {src:" (WSIF)",status:"Actual"}));
  app.append(g2);
+
+ // NEW: which product categories are growing vs shrinking (YoY 2024->2025)
+ const pcg=M.trade.product_type.filter(x=>x.y2024!=null&&x.y2025!=null&&x.y2024!==0).map(x=>({product:x.product,g:x.y2025/x.y2024-1,d24:x.y2024,d25:x.y2025})).sort((a,b)=>b.g-a.g);
+ if(pcg.length){
+  const growers=pcg.filter(x=>x.g>0).length,shr=pcg.length-growers;
+  const byName=n=>pcg.find(x=>x.product===n);
+  const hrc=byName("Hot-rolled sheets & coils"),crc=byName("Cold-rolled sheets & coils"),semis=byName("Ingots & semi-finished"),wr=byName("Wire rod"),rebar=byName("Concrete reinforcing bars");
+  const gb=el("div",{});
+  gb.append(legendEl([{color:"var(--teal)",label:"Growing 2024→2025"},{color:"var(--copper)",label:"Shrinking"}]));
+  gb.append(el("div",{class:"chart-scroll"},hbars(pcg.map(x=>({label:x.product,value:x.g,color:x.g>=0?"var(--teal)":"var(--copper)",tip:r=>"2024 "+f1(x.d24)+" Mt → 2025 "+f1(x.d25)+" Mt<br><b>"+pctS(x.g)+"</b>"})),{w:600,mL:200,rowH:21,vfmt:v=>pctS(v,0)})));
+  const parts=[];if(hrc)parts.push("HRC "+pctS(hrc.g,0));if(crc)parts.push("CRC "+pctS(crc.g,0));
+  const gparts=[];if(semis)gparts.push("billets/ingots "+pctS(semis.g,0));if(wr)gparts.push("wire rod "+pctS(wr.g,0));if(rebar)gparts.push("rebar "+pctS(rebar.g,0));
+  gb.append(el("p",{class:"mini-note"},growers+" of "+pcg.length+" traded product categories grew in 2025; "+shr+" shrank. Flat products are contracting"+(parts.length?" ("+parts.join(", ")+")":"")+" while semis and long products grow"+(gparts.length?" ("+gparts.join(", ")+")":"")+" — a rotation from flat toward long / semi-finished trade."));
+  app.append(el("div",{style:"margin-top:16px"},card("Traded product categories — growing vs shrinking","Year-on-year change in world export volume by product category (2024 → 2025).",gb,{src:" (WSIF)",status:"Actual"})));
+ }
 
  app.append(el("div",{style:"margin-top:16px"},el("div",{class:"gap-note"},el("b",{},"Bilateral product-level trade routing: not available in source model. ")," Origin→destination flows by HS code require populated UN Comtrade data, which is a pending template in this model version. The regional matrix above is the finest bilateral resolution currently supported.")));
 }
