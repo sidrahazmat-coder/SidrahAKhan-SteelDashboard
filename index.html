@@ -123,6 +123,26 @@ table.tbl th.sortable{cursor:pointer;user-select:none}
 table.tbl th.sortable:hover{color:var(--ink)}
 table.tbl th .sort-caret{font-size:8.5px;color:var(--steel);margin-left:2px}
 .tbl-empty{padding:14px 4px;color:var(--ink-3);font-size:12px}
+/* hero / market pulse */
+.hero{background:var(--surface-1);border:1px solid var(--line);border-left:4px solid var(--copper);border-radius:12px;padding:22px 24px;margin-bottom:18px;box-shadow:var(--shadow)}
+.hero-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--copper);font-weight:700;margin-bottom:9px}
+.hero h2{font-size:25px;line-height:1.28;letter-spacing:-.02em;max-width:940px;font-weight:650}
+.hero p{margin:11px 0 0;color:var(--ink-2);font-size:14px;max-width:900px;line-height:1.6}
+.bigtiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:14px;margin-bottom:18px}
+.bigtile{background:var(--surface-1);border:1px solid var(--line);border-radius:11px;padding:15px 17px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.bigtile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--steel)}
+.bigtile.acc-copper::before{background:var(--copper)}.bigtile.acc-teal::before{background:var(--teal)}.bigtile.acc-slate::before{background:var(--slate)}.bigtile.acc-neg::before{background:var(--neg)}.bigtile.acc-gold::before{background:var(--gold)}
+.bigtile .bt-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:600;min-height:24px}
+.bigtile .bt-val{font-size:29px;font-weight:680;letter-spacing:-.02em;margin:5px 0 2px;font-variant-numeric:tabular-nums;line-height:1.05}
+.bigtile .bt-val .u{font-size:13px;color:var(--ink-3);font-weight:500}
+.bigtile .bt-sub{font-size:11.5px;color:var(--ink-2);line-height:1.4}
+.watch{background:var(--surface-2);border:1px solid var(--line);border-left:3px solid var(--steel);border-radius:9px;padding:14px 16px}
+.watch h4{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--steel);margin-bottom:6px;font-weight:700}
+.watch p{margin:0;font-size:13.5px;line-height:1.58;color:var(--ink)}
+.regime-chip{display:inline-block;font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;letter-spacing:.03em}
+.regime-Tightening{background:var(--teal-soft);color:var(--teal)}.regime-Oversupplied{background:var(--copper-soft);color:var(--copper)}.regime-Balanced{background:var(--steel-soft);color:var(--steel)}
+.buysignal{font-size:20px;font-weight:700}
+.buy-Favourable{color:var(--pos)}.buy-Neutral{color:var(--gold)}.buy-Elevated{color:var(--neg)}
 .deflist{display:flex;flex-direction:column}
 .defrow{display:grid;grid-template-columns:220px 1fr;gap:16px;padding:11px 0;border-bottom:1px solid var(--line)}
 .defrow:last-child{border-bottom:none}
@@ -178,6 +198,7 @@ svg .axis-label{fill:var(--ink-3);font-size:10px}
   <div class="ctrl"><label>Region / Market</label><select id="selRegion"></select></div>
   <div class="ctrl"><label>Scenario</label><div class="seg" id="segScenario"></div></div>
   <div class="ctrl" id="ctrlPeriod"><label>Price period</label><div class="seg" id="segPeriod"></div></div>
+  <div class="ctrl" id="ctrlLens"><label>Lens</label><div class="seg" id="segLens"></div></div>
   <button class="reset-btn" id="csvBtn" title="Download this page's data (respects filters) as CSV">⭳ CSV</button>
   <button class="reset-btn" id="resetBtn">↺ Reset</button>
   <div class="scn-badge Base" id="scnBadge">BASE SCENARIO</div>
@@ -209,7 +230,7 @@ const pctS=(v,d=1)=>v==null?"–":(v>=0?"+":"")+(v*100).toFixed(d)+"%"; // signe
 // ---------- state ----------
 const REGIONS=["GCC","China","Europe","United States","India","ASEAN","Türkiye"];
 const PRODUCTS=["HRC","CRC","Rebar","Billet","Wire rod","Plate"];
-const state={page:"overview",product:"HRC",region:"GCC",scenario:"Base",period:"Full"};
+const state={page:"pulse",product:"HRC",region:"GCC",scenario:"Base",period:"Full",lens:"Investor"};
 
 // region resolver: canonical -> regional_balance name
 const RB_MAP={"GCC":"Middle East / GCC","China":"China","Europe":"European Union / Europe","United States":"United States / USMCA","India":"India","ASEAN":"ASEAN","Türkiye":"Türkiye"};
@@ -441,16 +462,18 @@ function kpi(label,val,unit,sub,tag,acc){
 
 // ================= PAGES =================
 const PAGES=[
- {id:"overview",num:"01",name:"Market Overview",fn:pgOverview},
- {id:"price",num:"02",name:"Price & Parity",fn:pgPrice},
- {id:"cost",num:"03",name:"Cost Curve",fn:pgCost},
- {id:"trade",num:"04",name:"Trade & Routes",fn:pgTrade},
- {id:"gcc",num:"05",name:"GCC Market",fn:pgGCC},
- {id:"supply",num:"06",name:"Supply & Demand",fn:pgSupply},
- {id:"forecast",num:"07",name:"Forecast",fn:pgForecast},
- {id:"scenarios",num:"08",name:"Scenarios",fn:pgScenarios},
- {id:"investor",num:"09",name:"Investor Lens",fn:pgInvestor},
- {id:"method",num:"10",name:"Methodology",fn:pgMethod},
+ {id:"pulse",num:"01",name:"Market Pulse",fn:pgPulse},
+ {id:"overview",num:"02",name:"Market Overview",fn:pgOverview},
+ {id:"price",num:"03",name:"Price & Parity",fn:pgPrice},
+ {id:"cost",num:"04",name:"Cost Curve",fn:pgCost},
+ {id:"trade",num:"05",name:"Trade & Routes",fn:pgTrade},
+ {id:"gcc",num:"06",name:"GCC Market",fn:pgGCC},
+ {id:"supply",num:"07",name:"Supply & Demand",fn:pgSupply},
+ {id:"buyer",num:"08",name:"Buyer Lens",fn:pgBuyer},
+ {id:"forecast",num:"09",name:"Forecast",fn:pgForecast},
+ {id:"scenarios",num:"10",name:"Scenarios",fn:pgScenarios},
+ {id:"investor",num:"11",name:"Investor Lens",fn:pgInvestor},
+ {id:"method",num:"12",name:"Methodology",fn:pgMethod},
 ];
 
 function head(h,p){return el("div",{class:"page-head"},el("h2",{},h),el("p",{},p));}
@@ -1161,6 +1184,167 @@ function pgMethod(app){
  app.append(el("div",{style:"margin-top:16px"},insight("This dashboard rebuilds the analytical surface from the Issue 02 workbook while keeping strict provenance discipline: observed values are tagged Actual, computed values Derived, and anything the model leaves blank is flagged rather than estimated. Forecasts are demand-scaled ranges, not predictions, and every cross-region comparison carries its basis caveat.","Methodology mirrors the model's own conservatism — where a component (freight, insurance, inventory, parity spread) is not populated, it is excluded and named, not proxied.")));
 }
 
+// ---- shared: buyer buy-timing signal (rebar benchmark, transparent rule) ----
+function buyerSignal(){
+ const rb=benchReturns("Rebar");if(!rb)return null;
+ const s=priceSeries("Rebar").filter(d=>d.y!=null);const last=rb.last.y;
+ const win=s.filter(d=>d.x>=rb.last.x-3);const mn=Math.min(...win.map(d=>d.y)),mx=Math.max(...win.map(d=>d.y));
+ const pos=mx>mn?(last-mn)/(mx-mn):0.5; // 0 = cheapest, 1 = dearest in trailing 3Y
+ const gccFc=fcRow("GCC","Rebar");const fcDir=(gccFc&&gccFc.observed)?gccFc.base/gccFc.observed-1:null;
+ let signal,expl;
+ if(pos<=0.4&&(fcDir==null||fcDir<0.03)){signal="Favourable";expl="Rebar sits in the lower part of its 3-year range and the Base forecast is not sharply higher — historically a more comfortable entry zone for buyers.";}
+ else if(pos>=0.7||(fcDir!=null&&fcDir>0.05)){signal="Elevated";expl="Rebar is in the upper part of its 3-year range and/or the outlook points higher — buyers may face less favourable pricing.";}
+ else {signal="Neutral";expl="Rebar is mid-range with a broadly flat outlook — no strong buy-timing edge either way.";}
+ return {signal,expl,pos,last,rb,fcDir,mn,mx,gccFc};
+}
+// ---- shared: market signal board (computed from real data) ----
+function marketSignals(){
+ const hrc=benchReturns("HRC"),rebar=benchReturns("Rebar");
+ const gccCost=lowestCost("GCC");const gccFc=fcRow("GCC","HRC");const margin=(gccFc&&gccCost)?gccFc.observed-gccCost.cash_cost:null;
+ const au=gbSeries("apparent steel use");const auLast=au.find(d=>d.x===2025)||au.at(-1);const au24=au.find(d=>d.x===2024);const demYoY=au24?auLast.y/au24.y-1:null;
+ const chExp=M.china.exports_by_dest.reduce((a,b)=>a+(b.exports||0),0);
+ const hrcWk=M.gcc_weekly.rows.find(x=>x.product&&x.product.startsWith("HRC"));
+ const S=[];
+ if(hrc)S.push({label:"HRC price momentum",dir:hrc.y1,val:pctS(hrc.y1)+" YoY",ev:"Benchmark "+usd(hrc.last.y)+"/t · "+pctS(hrc.mom)+" MoM",interp:hrc.y1<0?"Soft global flat-steel pricing; upstream margins under pressure.":"Firming flat-steel prices.",q:"Actual",aud:["Investor","Trader","Buyer"]});
+ if(rebar)S.push({label:"Rebar price momentum",dir:rebar.y1,val:pctS(rebar.y1)+" YoY",ev:"Benchmark "+usd(rebar.last.y)+"/t FOB China · "+pctS(rebar.mom)+" MoM",interp:rebar.y1<0?"Long-product prices easing — friendlier for construction buyers.":"Rebar firming — procurement costs rising.",q:"Actual",aud:["Buyer","Trader"]});
+ if(margin!=null)S.push({label:"GCC margin proxy",dir:margin,val:signed(margin)+"/t",ev:"HRC "+usd(gccFc.observed)+" − DRI-EAF cash cost "+usd(gccCost.cash_cost),interp:margin>0?"Positive spread over the world's lowest-cost route — structurally resilient.":"Spread compressed.",q:"Derived",aud:["Investor"]});
+ if(gccCost)S.push({label:"GCC cost-curve floor",dir:null,val:usd(gccCost.cash_cost)+"/t",ev:"Lowest DRI-EAF cash cost of 7 regions",interp:"Gas-based DRI-EAF is the model's marginal-cost floor — last route to lose money as prices fall.",q:"Derived",aud:["Investor","Trader"]});
+ S.push({label:"China export pressure",dir:null,val:f0(chExp)+" Mt",ev:"China finished-steel exports, 2025",interp:"Large extra-regional supply weighs on import parity across Asia and the Middle East.",q:"Actual",aud:["Trader","Investor","Buyer"]});
+ if(demYoY!=null)S.push({label:"Global demand direction",dir:demYoY,val:pctS(demYoY)+" YoY",ev:"Apparent use "+f0(auLast.y)+" Mt, below 2021 peak",interp:Math.abs(demYoY)<0.01?"Broadly flat after a multi-year decline led by China.":"Demand shifting.",q:"Estimated",aud:["Investor","Trader","Buyer"]});
+ if(hrcWk&&hrcWk.spread_vs_hrc!=null)S.push({label:"GCC import parity (HRC)",dir:hrcWk.spread_vs_hrc,val:signed(hrcWk.spread_vs_hrc)+"/t",ev:"CFR-UAE HRC vs China Tier-1",interp:"Sets whether imported tonnes undercut local mills.",q:"Actual",aud:["Trader","Buyer"]});
+ S.push({label:"GCC carbon / CBAM edge",dir:null,val:"1.47 tCO₂/t",ev:"DRI-EAF vs 2.34 for BF-BOF",interp:"Lower carbon intensity = lower CBAM drag into the EU — a durable trade advantage.",q:"Actual",aud:["Investor"]});
+ return S;
+}
+const dirMark=d=>d==null?el("span",{style:"color:var(--ink-3)"},"●"):el("span",{class:d>=0?"up":"down"},d>=0?"▲":"▼");
+
+// ---- 01 MARKET PULSE (hero, lens-aware) ----
+const LENS_COPY={
+ Investor:{eye:"Investor lens",head:h=>"Steel is oversupplied and demand is flat — but the "+h.gccCost+"/t GCC cost floor is where the margin still lives.",sub:"The investable signal isn't the headline price; it's who owns the bottom of the cost curve when China is exporting its surplus. Gas-based DRI-EAF in the GCC sits below every other region's cash cost, pairing a margin cushion with the lowest carbon/CBAM drag.",watch:"For investors: watch the margin proxy over the DRI-EAF floor, China's export run-rate into import-dependent markets, and any forecast revision. Low-cost, low-carbon supply is the margin-resilient end of the curve."},
+ Trader:{eye:"Trader lens",head:h=>"China is pushing "+h.chExp+" Mt of steel into the world — the arbitrage is in the parity spread, not the flat price.",sub:"Delivered China-origin tonnes reset import parity across the Middle East and Asia. The edge is knowing, route by route, whether landed supply undercuts the local benchmark after freight and duty — before the local mill reprices.",watch:"For traders: watch China export volume, the CFR-UAE vs origin parity spread, and bulk freight. When landed parity opens against a destination benchmark, imported tonnes win share fast."},
+ Buyer:{eye:"Procurement lens",head:h=>"Rebar is "+h.rebarYoY+" year-on-year — here's whether now is a good time to lock in.",sub:"For construction and infrastructure buyers, the question isn't the global average — it's where rebar sits versus its own history and where the forecast points. This lens turns price momentum, range position and import parity into a buy-timing read.",watch:"For buyers: watch rebar's position in its 3-year range, the Base forecast direction, and import parity versus your domestic quote. A low range-position with a flat outlook is the friendlier entry."}
+};
+function pgPulse(app){
+ const lens=state.lens;
+ const hrc=benchReturns("HRC"),rebar=benchReturns("Rebar");
+ const gccCost=lowestCost("GCC");const gccFc=fcRow("GCC","HRC");const margin=(gccFc&&gccCost)?gccFc.observed-gccCost.cash_cost:null;
+ const chExp=M.china.exports_by_dest.reduce((a,b)=>a+(b.exports||0),0);
+ const au=gbSeries("apparent steel use");const auLast=au.find(d=>d.x===2025)||au.at(-1);const au24=au.find(d=>d.x===2024);const demYoY=au24?auLast.y/au24.y-1:null;const auPeak=au.reduce((a,b)=>b.y>a.y?b:a);
+ const bs=buyerSignal();
+ // regime (global, transparent): from demand direction + China surplus pressure
+ let regime="Balanced";if(demYoY!=null){if(demYoY< -0.005||chExp>100)regime="Oversupplied";else if(demYoY>0.02)regime="Tightening";}
+ const H={gccCost:usd(gccCost?gccCost.cash_cost:0),chExp:f0(chExp),rebarYoY:rebar?pctS(rebar.y1):"—"};
+ const L=LENS_COPY[lens];
+ // hero
+ const hero=el("div",{class:"hero"},
+  el("div",{class:"hero-eyebrow"},L.eye+" · steel market pulse"),
+  el("h2",{},L.head(H)),
+  el("p",{},L.sub),
+  el("div",{style:"margin-top:14px"},el("span",{class:"regime-chip regime-"+regime},"MARKET REGIME · "+regime.toUpperCase())));
+ app.append(hero);
+ // big tiles — lead metric varies by lens
+ const T={
+  hrc:{label:"HRC benchmark",val:usd(hrc?hrc.last.y:null),u:"/t",sub:(hrc?pctS(hrc.y1)+" YoY · "+pctS(hrc.mom)+" MoM":"")+" · FOB China",acc:hrc&&hrc.y1<0?"neg":"steel"},
+  rebar:{label:"Rebar benchmark",val:usd(rebar?rebar.last.y:null),u:"/t",sub:(rebar?pctS(rebar.y1)+" YoY":"")+" · FOB China",acc:rebar&&rebar.y1<0?"teal":"copper"},
+  margin:{label:"GCC margin proxy",val:signed(margin),u:"/t",sub:"HRC over DRI-EAF cash cost",acc:margin>=0?"teal":"neg"},
+  cost:{label:"GCC cost floor",val:usd(gccCost?gccCost.cash_cost:null),u:"/t",sub:"lowest DRI-EAF of 7 regions",acc:"teal"},
+  china:{label:"China exports",val:f0(chExp),u:" Mt",sub:"2025 · import-parity pressure",acc:"copper"},
+  demand:{label:"Global demand",val:f0(auLast.y),u:" Mt",sub:pctS(demYoY)+" YoY · "+pctS(auLast.y/auPeak.y-1)+" vs 2021 peak",acc:"slate"},
+  buy:{label:"Rebar buy-timing",val:bs?bs.signal:"—",u:"",sub:bs?"range position "+Math.round(bs.pos*100)+"% of 3-yr":"",acc:bs?(bs.signal==="Favourable"?"teal":bs.signal==="Elevated"?"neg":"gold"):"slate"},
+  parity:{label:"GCC HRC import parity",val:(()=>{const w=M.gcc_weekly.rows.find(x=>x.product&&x.product.startsWith("HRC"));return w&&w.spread_vs_hrc!=null?signed(w.spread_vs_hrc):"—";})(),u:"/t",sub:"CFR-UAE vs China Tier-1",acc:"slate"},
+ };
+ const order={Investor:["margin","cost","hrc","china","demand"],Trader:["china","parity","hrc","rebar","demand"],Buyer:["rebar","buy","hrc","parity","demand"]}[lens];
+ const tiles=el("div",{class:"bigtiles"});
+ order.forEach(k=>{const t=T[k];tiles.append(el("div",{class:"bigtile acc-"+t.acc},el("div",{class:"bt-label"},t.label),el("div",{class:"bt-val"},t.val,t.u?el("span",{class:"u"},t.u):null),el("div",{class:"bt-sub"},t.sub)));});
+ app.append(tiles);
+ // price chart (HRC + Rebar) + signal board
+ const g=el("div",{class:"grid g23"});
+ const pc=el("div",{});
+ const cut=hrc?hrc.last.x-{"1Y":1,"3Y":3,"5Y":5,"Full":18}[state.period]:0;
+ const hrcS=priceSeries("HRC").filter(d=>d.y!=null&&d.x>=cut).map(d=>({x:d.x,y:d.y}));
+ const rebS=priceSeries("Rebar").filter(d=>d.y!=null&&d.x>=cut).map(d=>({x:d.x,y:d.y}));
+ pc.append(legendEl([{color:"var(--steel)",line:true,label:"HRC (flat)"},{color:"var(--copper)",line:true,label:"Rebar (long)"}]));
+ const yrs=state.period==="Full"?[2008,2012,2016,2020,2024]:[Math.ceil(cut),Math.round((cut+hrc.last.x)/2),Math.round(hrc.last.x)];
+ pc.append(lineChart([{name:"HRC",color:"var(--steel)",data:hrcS},{name:"Rebar",color:"var(--copper)",data:rebS}],{w:600,h:250,xticks:[...new Set(yrs)].map(y=>({x:y,label:y})),xlabel:x=>Math.round(x),yfmt:usd,hover:false}));
+ pc.append(el("p",{class:"mini-note"},"Flat (HRC) vs long (rebar) benchmark, FOB China, USD/t. HRC "+usd(hrc.last.y)+" ("+pctS(hrc.y1)+" YoY); rebar "+usd(rebar.last.y)+" ("+pctS(rebar.y1)+" YoY). Use the period control to zoom."));
+ g.append(card("Flat vs long — the two benchmarks","Where flat and long steel prices sit, and how they've moved.",pc,{status:"Actual"}));
+ // regime mini
+ const rm=el("div",{});
+ rm.append(el("div",{style:"text-align:center;padding:6px 0 12px"},el("span",{class:"regime-chip regime-"+regime},regime.toUpperCase())));
+ rm.append(el("p",{style:"font-size:13px;color:var(--ink-2);line-height:1.55;margin:0"},"Global steel demand is "+f0(auLast.y)+" Mt ("+pctS(demYoY)+" YoY, "+pctS(auLast.y/auPeak.y-1)+" below the 2021 peak) while China exports "+f0(chExp)+" Mt of surplus. Rule: Oversupplied if demand is falling or China exports exceed 100 Mt; Tightening if demand grows >2%; else Balanced."));
+ g.append(card("Market regime",null,rm,{status:"Derived",note:"Transparent rule from visible variables — no opaque score."}));
+ app.append(g);
+ // signal board — ordered by lens relevance
+ const sigs=marketSignals().slice().sort((a,b)=>(b.aud.indexOf(lens)>=0?1:0)-(a.aud.indexOf(lens)>=0?1:0));
+ const st=el("table",{class:"tbl"});
+ st.append(el("thead",{},el("tr",{},el("th",{class:"nosort"},""),el("th",{class:"nosort"},"Signal"),el("th",{class:"num nosort"},"Reading"),el("th",{class:"nosort"},"What it means"),el("th",{class:"num nosort"},"Quality"))));
+ const sb=el("tbody",{});
+ sigs.forEach(s=>{const primary=s.aud.indexOf(lens)>=0;sb.append(el("tr",{style:primary?"":"opacity:.72"},el("td",{style:"text-align:center"},dirMark(s.dir)),el("td",{},el("b",{},s.label),el("div",{style:"font-size:11px;color:var(--ink-3)"},s.ev)),el("td",{class:"num",style:"font-weight:600"},s.val),el("td",{style:"font-size:12px;color:var(--ink-2)"},s.interp),el("td",{class:"num"},tagEl(s.q))));});
+ st.append(sb);
+ app.append(el("div",{style:"margin-top:16px"},card("Signal board — "+lens+" priorities","The signals that move a steel thesis, ordered for the "+lens.toLowerCase()+" lens. Switch the Lens control to re-rank.",el("div",{class:"tbl-wrap",style:"max-height:none"},st),{status:"Actual",note:"Each reading is calculated and traceable; ● = structural (not a momentum reading)."})));
+ // what to watch
+ app.append(el("div",{style:"margin-top:16px"},el("div",{class:"watch"},el("h4",{},"What to watch — "+lens),el("p",{},L.watch))));
+ setExport("market_pulse_signals_"+lens,["Signal","Reading","Evidence","Interpretation","Quality"],sigs.map(s=>[s.label,s.val,s.ev,s.interp,s.q]));
+}
+
+// ---- 08 BUYER LENS (rebar / construction procurement) ----
+function pgBuyer(app){
+ app.append(head("Buyer Lens — rebar & long products","Built for construction, infrastructure and fabrication buyers: where rebar prices sit versus their own history, whether the timing favours locking in, and how landed import parity compares with local supply. Momentum is on the global FOB-China benchmark; local levels are the GCC weekly panel."));
+ const bs=buyerSignal();
+ if(!bs){app.append(el("div",{class:"gap-note"},"Rebar benchmark history is not available in the source model.")); return;}
+ const rb=bs.rb;
+ // KPIs
+ const kp=el("div",{class:"kpis"});
+ kp.append(kpi("Rebar benchmark",usd(rb.last.y),"/t","FOB China · latest","Actual","copper"));
+ kp.append(kpi("Year-on-year",pctS(rb.y1),"","MoM "+pctS(rb.mom),"Actual",rb.y1<0?"teal":"neg"));
+ kp.append(kpi("3-year range position",Math.round(bs.pos*100)+"%","","0% = 3-yr low ("+usd(bs.mn)+"), 100% = high ("+usd(bs.mx)+")","Derived","slate"));
+ kp.append(kpi("Buy-timing signal",bs.signal,"",bs.fcDir!=null?"outlook "+pctS(bs.fcDir):"outlook n/a","Derived",bs.signal==="Favourable"?"teal":bs.signal==="Elevated"?"neg":"slate"));
+ app.append(kp);
+ // buy-timing callout
+ app.append(el("div",{style:"margin-bottom:16px"},el("div",{class:"watch",style:"border-left-color:"+(bs.signal==="Favourable"?"var(--pos)":bs.signal==="Elevated"?"var(--neg)":"var(--gold)")},el("h4",{},"Buy-timing read"),el("p",{},el("span",{class:"buysignal buy-"+bs.signal},bs.signal+". "),bs.expl+" Rule (transparent): Favourable = price in the lower 40% of its 3-year range and Base forecast not up more than 3%; Elevated = upper 30% of range or forecast up more than 5%; else Neutral. This is a timing indicator on the global benchmark, not advice — your delivered cost depends on grade, origin and incoterm."))));
+ const g=el("div",{class:"grid g23"});
+ // rebar price history + GCC forecast band
+ const hb=el("div",{});
+ const cut=rb.last.x-{"1Y":1,"3Y":3,"5Y":5,"Full":18}[state.period];
+ const raw=priceSeries("Rebar").filter(d=>d.y!=null&&d.x>=cut).map(d=>({x:d.x,y:d.y}));
+ const series=[{name:"Rebar",color:"var(--copper)",area:true,data:raw}];let band=null;
+ // basis guard: the GCC rebar forecast is on a GCC domestic basis; only overlay it on the FOB-China benchmark if the levels are comparable
+ const basisMismatch=bs.gccFc&&bs.gccFc.observed!=null&&Math.abs(bs.gccFc.observed-rb.last.y)/rb.last.y>0.25;
+ if(bs.gccFc&&bs.gccFc.observed!=null&&!basisMismatch){const ax=raw.at(-1).x;series.push({name:"fc",color:"var(--steel)",dashed:true,dots:true,data:[{x:ax,y:raw.at(-1).y},{x:2026.6,y:bs.gccFc.base}]});band=[{x:ax,hi:raw.at(-1).y,lo:raw.at(-1).y},{x:2026.6,hi:bs.gccFc.high,lo:bs.gccFc.low}];}
+ hb.append(legendEl(basisMismatch?[{color:"var(--copper)",line:true,label:"Rebar actual (FOB China)"}]:[{color:"var(--copper)",line:true,label:"Rebar actual (FOB China)"},{dash:true,label:"GCC forecast"}]));
+ const yrs=state.period==="Full"?[2008,2012,2016,2020,2024]:[Math.ceil(cut),Math.round((cut+rb.last.x)/2),Math.round(rb.last.x)];
+ hb.append(lineChart(series,{w:600,h:250,band,xticks:[...new Set(yrs)].map(y=>({x:y,label:y})),xlabel:x=>{const y=Math.floor(x);return x%1?y+"-"+String(Math.round((x-y)*12+1)).padStart(2,"0"):y;},yfmt:usd}));
+ hb.append(el("p",{class:"mini-note"},"Rebar benchmark, FOB China. Latest "+usd(rb.last.y)+" ("+pctS(rb.y1)+" YoY). "+(bs.gccFc?(basisMismatch?"The GCC "+state.scenario+" forecast ("+usd(bs.gccFc.base)+", band "+usd(bs.gccFc.low)+"–"+f0(bs.gccFc.high)+") is on a GCC domestic basis (~"+usd(bs.gccFc.observed)+"), not the FOB-China benchmark, so it is shown as a figure rather than overlaid to avoid implying a false jump.":"Dashed = GCC "+state.scenario+" forecast "+usd(bs.gccFc.base)+" (band "+usd(bs.gccFc.low)+"–"+f0(bs.gccFc.high)+").")  :"")));
+ g.append(card("Rebar price & outlook","Is it cheap or dear versus its own history — and where's it heading?",hb,{status:"Actual"}));
+ // GCC local rebar levels
+ const loc=M.gcc_weekly.rows.filter(x=>x.product&&(x.product.toLowerCase().includes("rebar")||x.product.toLowerCase().includes("wire rod")||x.product.toLowerCase().includes("beam")));
+ const lt=el("table",{class:"tbl"});
+ lt.append(el("thead",{},el("tr",{},...["Product","Origin","Incoterm","Price $/t"].map((h,i)=>el("th",{class:i===3?"num":""},h)))));
+ const ltb=el("tbody",{});loc.forEach(r=>ltb.append(el("tr",{},el("td",{},r.product),el("td",{},r.origin),el("td",{},r.incoterm),el("td",{class:"num"},usd(r.mid)))));lt.append(ltb);
+ g.append(card("GCC local long-product prices","The weekly panel — domestic and imported rebar, wire rod and beams.",el("div",{class:"tbl-wrap"},lt),{src:M.gcc_weekly.week,status:"Actual",note:"Mixed incoterms — compare like-for-like bases only."}));
+ app.append(g);
+ // rebar import parity + demand growth
+ const g2=el("div",{class:"grid g2",style:"margin-top:16px"});
+ // import parity: Türkiye FOB + freight + 10% duty vs UAE domestic
+ const parity=[
+  {prod:"Rebar",origin:"Türkiye FOB",fob:580,freight:35,duty:0.10,domestic:795,domLabel:"UAE EXW"},
+  {prod:"Wire rod",origin:"Türkiye FOB",fob:592.5,freight:35,duty:0.10,domestic:760,domLabel:"Saudi CPT"},
+ ].map(r=>{const landed=Math.round((r.fob+r.freight)*(1+r.duty));return Object.assign(r,{landed,spread:r.domestic-landed});});
+ const pt=el("table",{class:"tbl"});
+ pt.append(el("thead",{},el("tr",{},...["Product","Landed import","Local","Buy imported?"].map((h,i)=>el("th",{class:i>=1?"num":""},h)))));
+ const ptb=el("tbody",{});parity.forEach(r=>ptb.append(el("tr",{},el("td",{},r.prod,el("div",{style:"font-size:11px;color:var(--ink-3)"},r.origin+" $"+f0(r.fob)+" + frt $"+f0(r.freight)+" + "+pct(r.duty,0)+" duty")),el("td",{class:"num"},usd(r.landed)),el("td",{class:"num"},usd(r.domestic)+" ",el("span",{style:"font-size:9px;color:var(--ink-3)"},r.domLabel)),el("td",{class:"num",style:"font-weight:600;color:"+(r.spread>0?"var(--pos)":"var(--neg)")},r.spread>0?"Yes, save "+usd(r.spread):"No, +"+usd(-r.spread)))));pt.append(ptb);
+ g2.append(card("Import parity — should you import?","Landed import cost vs local price. A positive gap = importing is cheaper than the local quote.",el("div",{},pt,el("p",{class:"mini-note"},"Landed = origin FOB + route freight + GCC duty (10% on rebar & wire rod). Insurance, inland haulage and financing are not populated, so this is indicative — a small positive gap may not survive full logistics.")),{status:"Derived"}));
+ // rebar demand growth
+ const pcRebar=M.trade.product_type.find(x=>x.product==="Concrete reinforcing bars");
+ const db=el("div",{});
+ if(pcRebar){const yoy=pcRebar.y2024?pcRebar.y2025/pcRebar.y2024-1:null;
+  db.append(groupedBars(["2021","2022","2023","2024","2025"],[{name:"Rebar",color:"var(--copper)",data:["y2021","y2022","y2023","y2024","y2025"].map(y=>pcRebar[y])}],{w:520,h:210,yfmt:v=>f0(v),vfmt:v=>f1(v)+" Mt"}));
+  db.append(el("p",{class:"mini-note"},"World rebar exports "+f1(pcRebar.y2025)+" Mt in 2025 — ",retSpan(yoy)," YoY. Long-product trade is growing while flat products contract, consistent with construction-led demand in emerging markets."));}
+ g2.append(card("Rebar traded volume","Is rebar demand in world trade growing or shrinking?",db,{src:" (WSIF)",status:"Actual"}));
+ app.append(g2);
+ app.append(el("div",{style:"margin-top:16px"},insight("Rebar sits at "+usd(rb.last.y)+"/t on the global benchmark ("+pctS(rb.y1)+" YoY), "+Math.round(bs.pos*100)+"% of the way up its 3-year range — a "+bs.signal.toLowerCase()+" buy-timing read. In the GCC, imported Türkiye rebar lands near $"+f0(parity[0].landed)+"/t versus a local UAE quote of ~$"+f0(parity[0].domestic)+", so imports currently "+(parity[0].spread>0?"undercut local supply by ~"+usd(parity[0].spread):"sit above local supply")+" before inland logistics. World rebar trade is still growing, underpinned by construction demand.","Momentum uses the FOB-China benchmark; your realised cost depends on grade, origin, incoterm and the logistics components the model does not populate.")));
+ setExport("buyer_rebar_local_prices",["Product","Origin","Incoterm","Price_USD_t"],loc.map(r=>[r.product,r.origin,r.incoterm,r.mid]));
+}
+
 // ================= SHELL =================
 function renderNav(){const nav=$("#nav");nav.innerHTML="";PAGES.forEach(p=>{const b=el("button",{class:state.page===p.id?"active":"",onclick:()=>{state.page=p.id;render();}},el("span",{class:"num"},p.num),p.name);nav.append(b);});}
 function renderControls(){
@@ -1168,6 +1352,7 @@ function renderControls(){
  const sr=$("#selRegion");if(!sr.options.length){REGIONS.forEach(r=>sr.append(el("option",{value:r},r)));sr.value=state.region;sr.addEventListener("change",e=>{state.region=e.target.value;render();});}
  const ss=$("#segScenario");if(!ss.children.length){["Base","Bull","Bear"].forEach(s=>ss.append(el("button",{class:s===state.scenario?"active":"",onclick:()=>{state.scenario=s;syncScenario();render();}},s)));}
  const pd=$("#segPeriod");if(!pd.children.length){["1Y","3Y","5Y","Full"].forEach(s=>pd.append(el("button",{class:s===state.period?"active":"",onclick:()=>{state.period=s;render();}},s)));}
+ const sl=$("#segLens");if(!sl.children.length){["Investor","Trader","Buyer"].forEach(s=>sl.append(el("button",{class:s===state.lens?"active":"",onclick:()=>{state.lens=s;render();}},s)));}
 }
 function syncScenario(){
  $$("#segScenario button").forEach(b=>b.classList.toggle("active",b.textContent===state.scenario));
@@ -1178,9 +1363,11 @@ function render(){
  renderNav();renderControls();syncScenario();
  $("#selProduct").value=state.product;$("#selRegion").value=state.region;
  $$("#segPeriod button").forEach(b=>b.classList.toggle("active",b.textContent===state.period));
+ $$("#segLens button").forEach(b=>b.classList.toggle("active",b.textContent===state.lens));
  const app=$("#app");app.innerHTML="";const page=el("div",{class:"page"});app.append(page);
  // period selector only relevant on pages using history
- $("#ctrlPeriod").style.display=["overview","forecast"].includes(state.page)?"":"none";
+ $("#ctrlPeriod").style.display=["overview","forecast","pulse"].includes(state.page)?"":"none";
+ $("#ctrlLens").style.display=["pulse","buyer"].includes(state.page)?"":"none";
  PAGE_EXPORT=null;
  PAGES.find(p=>p.id===state.page).fn(page);
  const cb=$("#csvBtn");cb.style.display=PAGE_EXPORT&&PAGE_EXPORT.rows.length?"":"none";if(PAGE_EXPORT)cb.title="Download “"+PAGE_EXPORT.name+".csv” — "+PAGE_EXPORT.rows.length+" rows (this page, current filters)";
@@ -1189,7 +1376,7 @@ function render(){
 $("#asof").innerHTML="Data as of <b>"+M.meta.data_as_of.split(";")[0]+"</b><br>Model build "+M.meta.model_build_date+" · "+M.meta.update_cadence;
 $("#themeBtn").addEventListener("click",()=>{const h=document.documentElement;h.dataset.theme=h.dataset.theme==="dark"?"light":"dark";});
 $("#csvBtn").addEventListener("click",downloadCSV);
-$("#resetBtn").addEventListener("click",()=>{state.product="HRC";state.region="GCC";state.scenario="Base";state.period="Full";render();});
+$("#resetBtn").addEventListener("click",()=>{state.product="HRC";state.region="GCC";state.scenario="Base";state.period="Full";state.lens="Investor";render();});
 render();
 
 </script>
