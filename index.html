@@ -931,8 +931,8 @@ function pgInvestor(app){
   ["China exports 2025","116.1 Mt","05/06"],["GCC utilisation","≈32% of DRI-hub capacity","12"],
   ["Parity spread","Not populated","16 (gap)"],["Capacity pipeline (realised)",f0(M.capacity.effective_operating_plus_realised)+" Mt","04"]];
  const it=el("table",{class:"tbl"});
- it.append(el("thead",{},el("tr",{},el("th",{},"Indicator"),el("th",{class:"num"},"Latest / status"),el("th",{},"Sheet"))));
- const itb=el("tbody",{});ind.forEach(r=>itb.append(el("tr",{},el("td",{},r[0]),el("td",{class:"num"},r[1]),el("td",{style:"font-family:var(--mono);font-size:11px;color:var(--ink-3)"},r[2]))));it.append(itb);
+ it.append(el("thead",{},el("tr",{},el("th",{},"Indicator"),el("th",{class:"num"},"Latest / status"))));
+ const itb=el("tbody",{});ind.forEach(r=>itb.append(el("tr",{},el("td",{},r[0]),el("td",{class:"num"},r[1]))));it.append(itb);
  app.append(el("div",{style:"margin-top:16px"},card("Key indicators to monitor","Only indicators the workbook carries a value or a defined input for.",it,{src:"multiple",status:"Actual"})));
 
  const gcc=lowestCost("GCC");
