@@ -327,7 +327,7 @@ function stackedBars(rows,keys,colorFn,opt={}){
  rows.forEach((r,i)=>{
   const y=mT+i*rowH;let cx=mL;
   const lab=svgel("text",{x:mL-8,y:y+rowH/2+3,"text-anchor":"end","font-size":11,fill:r.hl?"var(--ink)":"var(--ink-2)","font-weight":r.hl?600:400});lab.textContent=r.label;svg.append(lab);
-  r.segs.forEach(s=>{if(!s.v)return;const w=sx(s.v);if(w<0.5)return;const rc=svgel("rect",{x:cx,y:y+4,width:Math.max(w-2,0.5),height:rowH-9,rx:2,fill:colorFn(s.k)});svg.append(rc);rc.addEventListener("mousemove",ev=>showTip("<b>"+r.label+"</b><br>"+s.k+": "+usd(s.v),ev.clientX,ev.clientY));rc.addEventListener("mouseleave",hideTip);cx+=w;});
+  r.segs.forEach(s=>{if(!s.v)return;const w=sx(s.v);if(w<0.5)return;const rc=svgel("rect",{x:cx,y:y+4,width:Math.max(w-2,0.5),height:rowH-9,rx:2,fill:colorFn(s.k)});svg.append(rc);const pctv=r.total?s.v/r.total:null;rc.addEventListener("mousemove",ev=>showTip("<b>"+r.label+"</b><br>"+s.k+": "+usd(s.v)+(pctv!=null?" · "+(pctv*100).toFixed(0)+"%":""),ev.clientX,ev.clientY));rc.addEventListener("mouseleave",hideTip);cx+=w;});
   const tt=svgel("text",{x:cx+4,y:y+rowH/2+3,"font-size":10.5,fill:"var(--ink-2)","font-weight":600});tt.textContent=opt.totalFmt?opt.totalFmt(r.total):usd(r.total);svg.append(tt);
  });
  return svg;
@@ -577,7 +577,16 @@ function pgCost(app){
  const sb=cr.map(x=>({label:x.route,segs:keys.map(k=>({k,v:x[kmap[k]]})),total:x.cash_cost,hl:true}));
  const b2=el("div",{});b2.append(el("div",{class:"legend"},...keys.map(k=>el("span",{},el("span",{class:"swatch",style:"background:"+COST_COLORS[k]}),k))));
  b2.append(stackedBars(sb,keys,k=>COST_COLORS[k],{w:600,rowH:38,mL:82}));
- g.append(card(R+" cost build-up","Cash-cost components by route for the selected region.",b2,{src:"",status:"Derived"}));
+ // percentage breakup: each component as a share of that route's total cash cost
+ const shtbl=el("table",{class:"tbl"});
+ shtbl.append(el("thead",{},el("tr",{},el("th",{class:"nosort"},"Component"),...cr.map(x=>el("th",{class:"num nosort"},x.route)))));
+ const shb=el("tbody",{});
+ keys.forEach(k=>{const anyNonZero=cr.some(x=>x[kmap[k]]);if(!anyNonZero)return;const tr=el("tr",{},el("td",{},el("span",{class:"swatch",style:"display:inline-block;background:"+COST_COLORS[k]+";margin-right:6px;vertical-align:middle"}),k));cr.forEach(x=>{const v=x[kmap[k]],tot=x.cash_cost;const p=(v!=null&&tot)?v/tot:null;tr.append(el("td",{class:"num"},p?(p*100).toFixed(0)+"%":"–"));});shb.append(tr);});
+ const trT=el("tr",{class:"hl-row"},el("td",{},"Total cash cost"));cr.forEach(x=>trT.append(el("td",{class:"num"},usd(x.cash_cost))));shb.append(trT);
+ shtbl.append(shb);
+ b2.append(el("p",{class:"mini-note",style:"margin:12px 0 6px"},"Percentage breakup — each component as a share of that route's total cash cost:"));
+ b2.append(shtbl);
+ g.append(card(R+" cost build-up","Cash-cost components by route for the selected region, in $/t and as a % of each route's total.",b2,{src:"",status:"Derived"}));
 
  // route comparison + carbon lens
  const b3=el("div",{});
