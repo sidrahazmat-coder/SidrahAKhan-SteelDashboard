@@ -876,10 +876,10 @@ function pgScenarios(app){
  const d=M.scenarios.drivers;
  // comparison table
  const tbl=el("table",{class:"tbl"});
- tbl.append(el("thead",{},el("tr",{},...["Driver","Base","Bull","Bear","Unit / note"].map((h,i)=>el("th",{class:i>0&&i<4?"num":""},h)))));
+ tbl.append(el("thead",{},el("tr",{},...["Driver","Base","Bull","Bear"].map((h,i)=>el("th",{class:i>0&&i<4?"num":""},h)))));
  const isPct=x=>Math.abs(x.base)<1;
  const tb=el("tbody",{});
- d.forEach(x=>{const f=v=>v==null?"–":(isPct(x)?pct(v):f1(v));tb.append(el("tr",{},el("td",{},x.driver),el("td",{class:"num"},f(x.base)),el("td",{class:"num"},f(x.bull)),el("td",{class:"num"},f(x.bear)),el("td",{class:"nosort",style:"color:var(--ink-3);font-size:11px"},x.note||"")));});
+ d.forEach(x=>{const f=v=>v==null?"–":(isPct(x)?pct(v):f1(v));tb.append(el("tr",{},el("td",{},x.driver),el("td",{class:"num"},f(x.base)),el("td",{class:"num"},f(x.bull)),el("td",{class:"num"},f(x.bear))));});
  tbl.append(tb);
  setExport("scenario_drivers",["Driver","Base","Bull","Bear","Unit_note"],d.map(x=>[x.driver,x.base,x.bull,x.bear,x.note||""]));
  app.append(card("Scenario comparison table","Base vs Bull vs Bear across all model drivers. Search or sort any column.",enhanceTable(tbl,{search:true,scroll:true,searchPlaceholder:"Search drivers…"}),{src:"",status:"Scenario"}));
@@ -952,7 +952,7 @@ function pgInvestor(app){
   ["Iron ore 62% Fe","$104.6/t","07/14"],["Coking coal (PLV HCC)","$222/t","07/14"],["Ferrous scrap (HMS CFR)","$375/t","07/14"],
   ["Natural gas (GCC)","$1.9/MMBtu","08"],["Carbon price (EUA)","€75.4/tCO₂","08/14"],
   ["China exports 2025","116.1 Mt","05/06"],["GCC utilisation","≈32% of DRI-hub capacity","12"],
-  ["Parity spread","Not populated","16 (gap)"],["Capacity pipeline (realised)",f0(M.capacity.effective_operating_plus_realised)+" Mt","04"]];
+  ["Capacity pipeline (realised)",f0(M.capacity.effective_operating_plus_realised)+" Mt","04"]];
  const it=el("table",{class:"tbl"});
  it.append(el("thead",{},el("tr",{},el("th",{},"Indicator"),el("th",{class:"num"},"Latest / status"))));
  const itb=el("tbody",{});ind.forEach(r=>itb.append(el("tr",{},el("td",{},r[0]),el("td",{class:"num"},r[1]))));it.append(itb);
