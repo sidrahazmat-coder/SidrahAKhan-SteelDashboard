@@ -1128,12 +1128,29 @@ function pgTrade(app){
   const byName=n=>pcg.find(x=>x.product===n);
   const hrc=byName("Hot-rolled sheets & coils"),crc=byName("Cold-rolled sheets & coils"),semis=byName("Ingots & semi-finished"),wr=byName("Wire rod"),rebar=byName("Concrete reinforcing bars");
   const gb=el("div",{});
-  gb.append(legendEl([{color:"var(--teal)",label:"Growing 2024→2025"},{color:"var(--copper)",label:"Shrinking"}]));
-  gb.append(el("div",{class:"chart-scroll"},hbars(pcg.map(x=>({label:x.product,value:x.g,color:x.g>=0?"var(--teal)":"var(--copper)",tip:r=>"2024 "+f1(x.d24)+" Mt → 2025 "+f1(x.d25)+" Mt<br><b>"+pctS(x.g)+"</b>"})),{w:600,mL:200,rowH:21,vfmt:v=>pctS(v,0)})));
+  // view toggle: growth % · tonnage Mt · value ($, not in model)
+  const seg=el("div",{class:"seg",style:"margin-bottom:12px"});
+  const box=el("div",{});
+  let view="growth";
   const parts=[];if(hrc)parts.push("HRC "+pctS(hrc.g,0));if(crc)parts.push("CRC "+pctS(crc.g,0));
   const gparts=[];if(semis)gparts.push("billets/ingots "+pctS(semis.g,0));if(wr)gparts.push("wire rod "+pctS(wr.g,0));if(rebar)gparts.push("rebar "+pctS(rebar.g,0));
-  gb.append(el("p",{class:"mini-note"},growers+" of "+pcg.length+" traded product categories grew in 2025; "+shr+" shrank. Flat products are contracting"+(parts.length?" ("+parts.join(", ")+")":"")+" while semis and long products grow"+(gparts.length?" ("+gparts.join(", ")+")":"")+" — a rotation from flat toward long / semi-finished trade."));
-  app.append(el("div",{style:"margin-top:16px"},card("Traded product categories — growing vs shrinking","Year-on-year change in world export volume by product category (2024 → 2025).",gb,{src:" (WSIF)",status:"Actual"})));
+  function draw(){
+   box.innerHTML="";
+   if(view==="growth"){
+    box.append(legendEl([{color:"var(--teal)",label:"Growing 2024→2025"},{color:"var(--copper)",label:"Shrinking"}]));
+    box.append(el("div",{class:"chart-scroll"},hbars(pcg.slice().sort((a,b)=>b.g-a.g).map(x=>({label:x.product,value:x.g,color:x.g>=0?"var(--teal)":"var(--copper)",tip:r=>"2024 "+f1(x.d24)+" Mt → 2025 "+f1(x.d25)+" Mt<br><b>"+pctS(x.g)+"</b>"})),{w:600,mL:200,rowH:21,vfmt:v=>pctS(v,0)})));
+    box.append(el("p",{class:"mini-note"},growers+" of "+pcg.length+" traded product categories grew in 2025; "+shr+" shrank. Flat products are contracting"+(parts.length?" ("+parts.join(", ")+")":"")+" while semis and long products grow"+(gparts.length?" ("+gparts.join(", ")+")":"")+" — a rotation from flat toward long / semi-finished trade."));
+   } else if(view==="tonnage"){
+    const byVol=pcg.slice().sort((a,b)=>b.d25-a.d25);
+    box.append(el("div",{class:"chart-scroll"},hbars(byVol.map(x=>({label:x.product,value:x.d25,color:"var(--steel)",tip:r=>"2025 "+f1(x.d25)+" Mt ("+pctS(x.g)+" YoY)"})),{w:600,mL:200,rowH:21,vfmt:v=>f1(v)+" Mt"})));
+    box.append(el("p",{class:"mini-note"},"World export volume by product category, 2025 (Mt). Largest traded categories: "+byVol.slice(0,3).map(x=>x.product.toLowerCase()+" "+f1(x.d25)+" Mt").join(", ")+"."));
+   } else { // value
+    box.append(el("div",{class:"gap-note"},el("b",{},"Export value ($) — not available in the source model. ")," The traded-product table carries volumes (Mt) only, not per-category export value. A value view would need customs value or a per-category price series (US$/t) for each product line, which is not populated — so it is flagged rather than estimated from a single benchmark price."));
+   }
+  }
+  [["growth","YoY growth %"],["tonnage","2025 tonnage (Mt)"],["value","Value ($)"]].forEach(([v,lab])=>seg.append(el("button",{class:v===view?"active":"",onclick:e=>{view=v;[...seg.children].forEach(b=>b.classList.toggle("active",b.textContent===lab));draw();}},lab)));
+  gb.append(seg);gb.append(box);draw();
+  app.append(el("div",{style:"margin-top:16px"},card("Traded product categories — by view","World export by product category — switch between year-on-year growth, 2025 tonnage, or value.",gb,{src:" (WSIF)",status:"Actual"})));
  }
 
  app.append(el("div",{style:"margin-top:16px"},el("div",{class:"gap-note"},el("b",{},"Bilateral product-level trade routing: not available in source model. ")," Origin→destination flows by HS code require populated UN Comtrade data, which is a pending template in this model version. The regional matrix above is the finest bilateral resolution currently supported.")));
