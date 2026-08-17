@@ -117,6 +117,19 @@ table.tbl tr:hover td{background:var(--surface-2)}
 table.tbl td.num,table.tbl th.num{text-align:right}
 .tbl-wrap{max-height:420px;overflow:auto}
 .hl-row td{background:var(--steel-soft)!important;font-weight:600}
+.tbl-search{width:100%;max-width:300px;margin-bottom:9px;padding:6px 11px;border:1px solid var(--line-2);border-radius:6px;background:var(--surface-1);color:var(--ink);font-family:inherit;font-size:12.5px}
+.tbl-search:focus{outline:none;border-color:var(--steel)}
+table.tbl th.sortable{cursor:pointer;user-select:none}
+table.tbl th.sortable:hover{color:var(--ink)}
+table.tbl th .sort-caret{font-size:8.5px;color:var(--steel);margin-left:2px}
+.tbl-empty{padding:14px 4px;color:var(--ink-3);font-size:12px}
+.deflist{display:flex;flex-direction:column}
+.defrow{display:grid;grid-template-columns:220px 1fr;gap:16px;padding:11px 0;border-bottom:1px solid var(--line)}
+.defrow:last-child{border-bottom:none}
+.defterm{font-size:13px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.defbody{font-size:13px;color:var(--ink-2);line-height:1.55}
+.defbody a{color:var(--steel);font-weight:600;white-space:nowrap}
+@media(max-width:720px){.defrow{grid-template-columns:1fr;gap:3px}}
 
 /* misc */
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11.5px;color:var(--ink-2);margin-bottom:6px}
@@ -165,6 +178,7 @@ svg .axis-label{fill:var(--ink-3);font-size:10px}
   <div class="ctrl"><label>Region / Market</label><select id="selRegion"></select></div>
   <div class="ctrl"><label>Scenario</label><div class="seg" id="segScenario"></div></div>
   <div class="ctrl" id="ctrlPeriod"><label>Price period</label><div class="seg" id="segPeriod"></div></div>
+  <button class="reset-btn" id="csvBtn" title="Download this page's data (respects filters) as CSV">⭳ CSV</button>
   <button class="reset-btn" id="resetBtn">↺ Reset</button>
   <div class="scn-badge Base" id="scnBadge">BASE SCENARIO</div>
 </div>
@@ -331,6 +345,66 @@ function donut(rows,opt={}){ // rows=[{label,value,color}]
  return svg;
 }
 
+// Scatter / bubble: points=[{x,y,r,label,color,tip}]
+function scatterChart(points,opt={}){
+ const W=opt.w||560,H=opt.h||300,mL=opt.mL||56,mR=20,mT=16,mB=opt.mB||44;
+ const iw=W-mL-mR,ih=H-mT-mB;
+ const xs=points.map(p=>p.x),ys=points.map(p=>p.y);
+ let xmin=opt.xmin??Math.min(...xs),xmax=opt.xmax??Math.max(...xs);
+ let ymin=opt.ymin??Math.min(...ys),ymax=opt.ymax??Math.max(...ys);
+ const px=(xmax-xmin)*0.14||1,py=(ymax-ymin)*0.16||1;xmin-=px;xmax+=px;ymin-=py;ymax+=py;
+ const sx=x=>mL+(x-xmin)/(xmax-xmin)*iw, sy=y=>mT+ih-(y-ymin)/(ymax-ymin)*ih;
+ const rmax=Math.max(...points.map(p=>p.r||1),1);const rscale=v=>7+Math.sqrt((v||1)/rmax)*20;
+ const svg=svgel("svg",{viewBox:`0 0 ${W} ${H}`,width:"100%"});
+ for(let i=0;i<=4;i++){const v=ymin+(ymax-ymin)*i/4,y=sy(v);svg.append(svgel("line",{class:"grid-line",x1:mL,x2:W-mR,y1:y,y2:y}));const t=svgel("text",{x:mL-7,y:y+3,"text-anchor":"end","font-size":10});t.textContent=opt.yfmt?opt.yfmt(v):f0(v);svg.append(t);}
+ for(let i=0;i<=4;i++){const v=xmin+(xmax-xmin)*i/4,x=sx(v);const t=svgel("text",{x,y:H-16,"text-anchor":"middle","font-size":10});t.textContent=opt.xfmt?opt.xfmt(v):f0(v);svg.append(t);}
+ if(opt.diag){const lo=Math.max(xmin,ymin),hi=Math.min(xmax,ymax);if(hi>lo){svg.append(svgel("line",{x1:sx(lo),y1:sy(lo),x2:sx(hi),y2:sy(hi),stroke:"var(--ink-3)","stroke-width":1,"stroke-dasharray":"4 3",opacity:.55}));const t=svgel("text",{x:sx(hi)-3,y:sy(hi)-4,"text-anchor":"end","font-size":9,fill:"var(--ink-3)"});t.textContent=opt.diagLabel||"break-even";svg.append(t);}}
+ if(opt.xlabel){const t=svgel("text",{x:mL+iw/2,y:H-2,"text-anchor":"middle","font-size":10,fill:"var(--ink-3)"});t.textContent=opt.xlabel;svg.append(t);}
+ if(opt.ylabel){const t=svgel("text",{x:13,y:mT+ih/2,"text-anchor":"middle","font-size":10,fill:"var(--ink-3)",transform:`rotate(-90 13 ${mT+ih/2})`});t.textContent=opt.ylabel;svg.append(t);}
+ points.forEach(p=>{const cx=sx(p.x),cy=sy(p.y),r=rscale(p.r);
+  const c=svgel("circle",{cx,cy,r,fill:p.color||"var(--steel)","fill-opacity":.45,stroke:p.color||"var(--steel)","stroke-width":1.5});svg.append(c);
+  const t=svgel("text",{x:cx,y:cy-r-3,"text-anchor":"middle","font-size":9.5,fill:"var(--ink-2)","font-weight":600});t.textContent=p.label;svg.append(t);
+  c.addEventListener("mousemove",ev=>showTip("<b>"+p.label+"</b>"+(p.tip?"<br>"+p.tip:""),ev.clientX,ev.clientY));c.addEventListener("mouseleave",hideTip);});
+ return svg;
+}
+
+// ---------- CSV export (current page, respects filters) ----------
+let PAGE_EXPORT=null;
+function setExport(name,headers,rows){PAGE_EXPORT={name,headers,rows};}
+function toCSV(headers,rows){const esc=v=>{v=v==null?"":String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};return [headers.map(esc).join(",")].concat(rows.map(r=>r.map(esc).join(","))).join("\r\n");}
+function downloadCSV(){if(!PAGE_EXPORT||!PAGE_EXPORT.rows.length)return;const csv=toCSV(PAGE_EXPORT.headers,PAGE_EXPORT.rows);const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});const url=URL.createObjectURL(blob);const a=el("a",{href:url,download:PAGE_EXPORT.name+".csv"});document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);}
+
+// ---------- sortable + searchable table wrapper ----------
+// takes a built <table class="tbl">; adds clickable sort on headers + optional search box
+function enhanceTable(table,opt={}){
+ const wrap=el("div",{});
+ const tb=table.querySelector("tbody");const ths=[...table.querySelectorAll("thead th")];
+ const parseNum=s=>{const m=(s||"").replace(/[^0-9.\-]/g,"");return m===""||m==="-"||m==="."?null:parseFloat(m);};
+ if(opt.search&&tb){
+  const inp=el("input",{class:"tbl-search",type:"text",placeholder:opt.searchPlaceholder||"Search…"});
+  const empty=el("div",{class:"tbl-empty",style:"display:none"},"No matching rows.");
+  inp.addEventListener("input",()=>{const q=inp.value.toLowerCase();let vis=0;[...tb.rows].forEach(r=>{const show=r.textContent.toLowerCase().includes(q);r.style.display=show?"":"none";if(show)vis++;});empty.style.display=vis?"none":"";});
+  wrap.append(inp);wrap._empty=empty;
+ }
+ if(tb)ths.forEach((th,ci)=>{
+  if(th.classList.contains("nosort"))return;
+  th.classList.add("sortable");
+  const caret=el("span",{class:"sort-caret"},"");th.append(caret);
+  th.addEventListener("click",()=>{
+   const rows=[...tb.rows];const dir=th.dataset.dir==="asc"?"desc":"asc";
+   ths.forEach(o=>{o.dataset.dir="";const c=o.querySelector(".sort-caret");if(c)c.textContent="";});
+   th.dataset.dir=dir;caret.textContent=dir==="asc"?"▲":"▼";
+   const nums=rows.map(r=>parseNum(r.cells[ci]&&r.cells[ci].textContent));const allNum=nums.filter(v=>v!=null).length>=Math.max(1,rows.length*0.6);
+   rows.sort((a,b)=>{let av=(a.cells[ci]&&a.cells[ci].textContent)||"",bv=(b.cells[ci]&&b.cells[ci].textContent)||"";if(allNum){const an=parseNum(av),bn=parseNum(bv);return dir==="asc"?( (an==null?-Infinity:an)-(bn==null?-Infinity:bn) ):( (bn==null?-Infinity:bn)-(an==null?-Infinity:an) );}return dir==="asc"?av.localeCompare(bv,undefined,{numeric:true}):bv.localeCompare(av,undefined,{numeric:true});});
+   rows.forEach(r=>tb.append(r));
+  });
+ });
+ if(opt.scroll){const sc=el("div",{class:"tbl-wrap"});sc.append(table);wrap.append(sc);}
+ else wrap.append(table);
+ if(wrap._empty)wrap.append(wrap._empty);
+ return wrap;
+}
+
 // ---------- reusable blocks ----------
 function tagEl(q){const c=(q||"").includes("USER")?"Input":(q||"Actual").split("/")[0];return el("span",{class:"tag "+c},c==="Input"?"INPUT REQ":(q||"Actual").split("/")[0]);}
 function card(title,q,body,foot){
@@ -362,6 +436,7 @@ const PAGES=[
  {id:"forecast",num:"07",name:"Forecast",fn:pgForecast},
  {id:"scenarios",num:"08",name:"Scenarios",fn:pgScenarios},
  {id:"investor",num:"09",name:"Investor Lens",fn:pgInvestor},
+ {id:"method",num:"10",name:"Methodology",fn:pgMethod},
 ];
 
 function head(h,p){return el("div",{class:"page-head"},el("h2",{},h),el("p",{},p));}
@@ -407,6 +482,7 @@ function pgOverview(app){
   const lastX=lastR.x;const extended=P==="HRC"&&M.hrc_continuation;
   const cut={"1Y":lastX-1,"3Y":lastX-3,"5Y":lastX-5,"Full":0}[state.period]??0;
   const raw=full.filter(r=>r.x>=cut);
+  setExport("overview_"+P+"_benchmark_"+state.period,["Year","Month","Price_USD_per_t","Source"],raw.map(r=>[r.year,r.month,r.y!=null?r.y:"",r.src]));
   const rows=raw.map(r=>({x:r.x,y:r.y}));
   const tickYears=state.period==="Full"?[2008,2012,2016,2020,2024]:[Math.ceil(cut),Math.ceil(cut)+1,Math.round(lastX)];
   const xticks=state.period==="1Y"
@@ -449,6 +525,7 @@ function pgCost(app){
  app.append(head("Cost Curve — route-level cash cost","Where does each region-route sit on the cost curve? This is the model's Level-1 route-level cash cost. A plant-level (Level-2) curve is not available in the source model."));
  // ranked cost curve across all region-route
  const all=M.cost_curve.rows.filter(x=>x.cash_cost!=null).slice().sort((a,b)=>a.cash_cost-b.cash_cost);
+ setExport("cost_curve_all_routes",["Region","Route","Cash_cost_USD_t","Ore_pellet","Coal_coke","Scrap","DRI_HBI","Energy","Electrodes_alloys","Carbon","Other_opex"],all.map(x=>[x.region,x.route,x.cash_cost,x.ore,x.coal,x.scrap,x.dri,x.energy,x.electrodes,x.carbon,x.opex]));
  const routeCol={"BF-BOF":"var(--slate)","Scrap-EAF":"var(--copper)","DRI-EAF":"var(--teal)"};
  const rows=all.map(x=>({label:x.region+" · "+x.route,value:x.cash_cost,color:routeCol[x.route]||COL.steel,hl:x.region===R,tip:r=>x.route+"<br>Cash cost "+usd(x.cash_cost)}));
  const fc=fcRow(R,state.product);
@@ -518,7 +595,8 @@ function pgGCC(app){
  const ptbl=el("table",{class:"tbl"});
  ptbl.append(el("thead",{},el("tr",{},...["Product","Origin","Incoterm","Mid $/t","vs CFR HRC"].map(h=>el("th",{class:h.includes("$")||h.includes("vs")?"num":""},h)))));
  const tb=el("tbody",{});pw.forEach(r=>{tb.append(el("tr",{},el("td",{},r.product),el("td",{},r.origin),el("td",{},r.incoterm),el("td",{class:"num"},usd(r.mid)),el("td",{class:"num "+(r.spread_vs_hrc>=0?"up":"down")},r.spread_vs_hrc!=null?signed(r.spread_vs_hrc):"–")));});ptbl.append(tb);
- g2.append(card("GCC weekly price board","Latest weekly panel by product and delivery basis (week "+M.gcc_weekly.week+").",el("div",{class:"tbl-wrap"},ptbl),{src:"09/12",status:"Actual",note:"Mixed incoterms — do not compare unlike bases without normalisation."}));
+ setExport("gcc_weekly_price_board_"+M.gcc_weekly.week,["Product","Origin","Incoterm","Mid_USD_t","Spread_vs_CFR_HRC_USD_t"],pw.map(r=>[r.product,r.origin,r.incoterm,r.mid,r.spread_vs_hrc!=null?r.spread_vs_hrc:""]));
+ g2.append(card("GCC weekly price board","Latest weekly panel by product and delivery basis (week "+M.gcc_weekly.week+"). Search or sort any column.",enhanceTable(ptbl,{search:true,scroll:true,searchPlaceholder:"Search products / origin…"}),{src:"09/12",status:"Actual",note:"Mixed incoterms — do not compare unlike bases without normalisation."}));
  // DRI-EAF cost advantage vs regions
  const driRows=M.cost_curve.rows.filter(x=>x.route==="DRI-EAF"&&x.cash_cost!=null).sort((a,b)=>a.cash_cost-b.cash_cost).map(x=>({label:x.region,value:x.cash_cost,color:x.region==="GCC"?"var(--teal)":"var(--slate)",hl:x.region==="GCC"}));
  g2.append(card("DRI-EAF cost advantage vs regions","Gas-based DRI-EAF cash cost — GCC vs other regions.",
@@ -542,7 +620,7 @@ function pgGCC(app){
  pjtbl.append(el("thead",{},el("tr",{},...["Plant","Country","Tech","Status","Mtpa"].map(h=>el("th",{class:h==="Mtpa"?"num":""},h)))));
  const stCol={operating:"var(--teal)",construction:"var(--gold)",announced:"var(--slate)",cancelled:"var(--neg)"};
  const pjb=el("tbody",{});pj.sort((a,b)=>b.capacity-a.capacity).forEach(p=>{pjb.append(el("tr",{},el("td",{},p.plant),el("td",{},p.country.replace("United Arab Emirates","UAE").replace("Saudi Arabia","Saudi")),el("td",{},p.tech),el("td",{},el("span",{class:"pill",style:"background:transparent;color:"+(stCol[p.status]||"var(--ink-2)")+";font-weight:600"},p.status)),el("td",{class:"num"},f1(p.capacity))));});pjtbl.append(pjb);
- g3.append(card("Project pipeline","Real GCC plants by status — announced capacity is not assumed realised.",el("div",{class:"tbl-wrap"},pjtbl),{src:" (GEM S06)",status:"Actual"}));
+ g3.append(card("Project pipeline","Real GCC plants by status — announced capacity is not assumed realised. Sortable.",enhanceTable(pjtbl,{scroll:true}),{src:" (GEM S06)",status:"Actual"}));
  app.append(g3);
 
  // GCC import tariffs & policy (external context)
@@ -580,6 +658,7 @@ function pgSupply(app){
  })();
  // net trade ranking
  const rb=M.regional_balance.rows.filter(x=>x.net_trade!=null);
+ setExport("regional_supply_demand",["Region","Capacity_Mt","Production_Mt","Utilisation","Net_trade_Mt","Surplus_deficit_Mt","Structure"],M.regional_balance.rows.map(x=>[x.region,x.capacity!=null?x.capacity:"",x.production!=null?x.production:"",x.utilisation!=null?x.utilisation:"",x.net_trade!=null?x.net_trade:"",x.surplus_deficit!=null?x.surplus_deficit:"",x.structure||""]));
  const SHORT={"China":"China","European Union / Europe":"EU / Europe","United States / USMCA":"US / USMCA","India":"India","Japan + South Korea":"Japan+Korea","ASEAN":"ASEAN","Middle East / GCC":"GCC / M.East","Türkiye":"Türkiye","North Africa":"N. Africa","Rest of World":"Rest of World"};const ntRows=rb.slice().sort((a,b)=>b.net_trade-a.net_trade).map(x=>({label:SHORT[x.region]||x.region,value:x.net_trade,color:x.net_trade>=0?"var(--teal)":"var(--copper)",hl:x.region===RB_MAP[R]}));
  const g=el("div",{class:"grid g2"});
  g.append(card("Net-trade ranking","Exports − imports by region (Mt, 2024). Green = net exporter, copper = net importer.",
@@ -590,6 +669,14 @@ function pgSupply(app){
   (()=>{const b=el("div",{});b.append(legendEl([{color:"var(--slate)",label:"Capacity"},{color:"var(--steel)",label:"Production"}]));b.append(groupedBars(pc.map(x=>x.region.split(" ")[0].replace("European","EU").replace("United","US").replace("Middle","GCC").replace("Japan","JP+KR")),[{name:"Capacity",color:"var(--slate)",data:pc.map(x=>x.capacity)},{name:"Production",color:"var(--steel)",data:pc.map(x=>x.production)}],{w:560,h:230,yfmt:v=>f0(v),vfmt:v=>f1(v)+" Mt",rotate:false}));return b;})(),
   {src:"",status:"Estimated"}));
  app.append(g);
+
+ // NEW diagnostic: supply-balance positioning (utilisation vs net trade, bubble = capacity)
+ const scPts=M.regional_balance.rows.filter(x=>x.utilisation!=null&&x.net_trade!=null).map(x=>{let regime="Balanced";if(x.net_trade>15&&x.utilisation>0.82)regime="Tightening";else if(x.net_trade<-10||x.utilisation<0.7)regime="Oversupplied";const col=regime==="Tightening"?"var(--teal)":regime==="Oversupplied"?"var(--copper)":"var(--slate)";return{x:x.utilisation*100,y:x.net_trade,r:x.capacity||10,label:(SHORT[x.region]||x.region).split(" ")[0],color:col,tip:"Utilisation "+pct(x.utilisation)+"<br>Net trade "+signed(x.net_trade)+" Mt<br>Capacity "+(x.capacity!=null?f0(x.capacity)+" Mt":"–")+"<br>Regime: "+regime};});
+ if(scPts.length){const scB=el("div",{});
+  scB.append(legendEl([{color:"var(--teal)",label:"Tightening"},{color:"var(--slate)",label:"Balanced"},{color:"var(--copper)",label:"Oversupplied"}]));
+  scB.append(el("div",{class:"chart-scroll"},scatterChart(scPts,{w:620,h:300,xfmt:v=>Math.round(v)+"%",yfmt:v=>signed(v),xlabel:"Capacity utilisation →",ylabel:"Net trade (Mt)"})));
+  scB.append(el("p",{class:"mini-note"},"Each bubble is a region; bubble size = crude-steel capacity (Mt). Upper-right (high utilisation, net exporter) tends toward tightening; lower-left toward oversupply. Regime thresholds match the market-regime panel below."));
+  app.append(el("div",{style:"margin-top:16px"},card("Supply-balance positioning","Utilisation versus net trade — where each region sits, sized by capacity.",scB,{status:"Derived",note:"Built from regional utilisation, net trade and capacity only."})));}
 
  // market regime for selected region
  const row=rbRow(R);
@@ -642,6 +729,7 @@ function trRow(k,v){return el("tr",{},el("td",{style:"color:var(--ink-2)"},k),el
 // ---- 07 FORECAST ----
 function pgForecast(app){
  const R=state.region,P=state.product;const fc=fcRow(R,P);
+ setExport("forecast_matrix",["Region","Product","Observed_USD_t","Base","Bull","Bear","Low","High","Driver","Status","Source"],M.forecast.rows.map(x=>[x.region,x.product,x.observed!=null?x.observed:"",x.base,x.bull,x.bear,x.low,x.high,x.driver||"",x.quality||"",x.prov||""]));
  app.append(head("Steel Price Outlook — "+R+" · "+P,"Historical actuals with the model's scenario-derived Base / Bull / Bear ranges. Forecasts are ranges, not point predictions, and are drawn distinctly from observed data."));
  if(!fc||fc.observed==null){
   app.append(el("div",{class:"gap-note"},el("b",{},"Not available in source model.")," A populated forecast for "+P+" · "+R+" is not present (not present in this model version). Populated combinations: China HRC/Rebar/Billet · Europe HRC/CRC/Rebar · United States HRC · India HRC/Rebar · GCC HRC/CRC/Rebar/Billet/Wire rod · ASEAN HRC."));
@@ -712,9 +800,10 @@ function pgScenarios(app){
  tbl.append(el("thead",{},el("tr",{},...["Driver","Base","Bull","Bear","Unit / note"].map((h,i)=>el("th",{class:i>0&&i<4?"num":""},h)))));
  const isPct=x=>Math.abs(x.base)<1;
  const tb=el("tbody",{});
- d.forEach(x=>{const f=v=>v==null?"–":(isPct(x)?pct(v):f1(v));tb.append(el("tr",{},el("td",{},x.driver),el("td",{class:"num"},f(x.base)),el("td",{class:"num"},f(x.bull)),el("td",{class:"num"},f(x.bear)),el("td",{style:"color:var(--ink-3);font-size:11px"},x.note||"")));});
+ d.forEach(x=>{const f=v=>v==null?"–":(isPct(x)?pct(v):f1(v));tb.append(el("tr",{},el("td",{},x.driver),el("td",{class:"num"},f(x.base)),el("td",{class:"num"},f(x.bull)),el("td",{class:"num"},f(x.bear)),el("td",{class:"nosort",style:"color:var(--ink-3);font-size:11px"},x.note||"")));});
  tbl.append(tb);
- app.append(card("Scenario comparison table","Base vs Bull vs Bear across all model drivers.",el("div",{class:"tbl-wrap",style:"max-height:520px"},tbl),{src:"",status:"Scenario"}));
+ setExport("scenario_drivers",["Driver","Base","Bull","Bear","Unit_note"],d.map(x=>[x.driver,x.base,x.bull,x.bear,x.note||""]));
+ app.append(card("Scenario comparison table","Base vs Bull vs Bear across all model drivers. Search or sort any column.",enhanceTable(tbl,{search:true,scroll:true,searchPlaceholder:"Search drivers…"}),{src:"",status:"Scenario"}));
 
  const g=el("div",{class:"grid g2",style:"margin-top:16px"});
  // dispersion chart (NOT a sensitivity)
@@ -743,6 +832,7 @@ function pgInvestor(app){
  // price vs cash cost by region (for selected product where price exists)
  const P=state.product;
  const rows=[];REGIONS.forEach(r=>{const fc=fcRow(r,P);const lc=lowestCost(r);if(fc&&fc.observed!=null&&lc)rows.push({region:r,price:fc.observed,cost:lc.cash_cost,route:lc.route,margin:fc.observed-lc.cash_cost});});
+ if(rows.length)setExport("investor_price_vs_cost_"+P,["Region","Product","Observed_price_USD_t","Lowest_route","Route_cash_cost_USD_t","Margin_proxy_USD_t"],rows.map(x=>[x.region,P,x.price,x.route,x.cost,x.margin]));
  const g=el("div",{class:"grid g2"});
  if(rows.length){
   const b=el("div",{});b.append(legendEl([{color:"var(--slate)",label:"Lowest route cash cost"},{color:"var(--steel)",label:P+" observed price"}]));
@@ -754,6 +844,15 @@ function pgInvestor(app){
    {src:"17 · 15",status:"Derived",note:"Proxy — excludes route freight & product-cost basis differences."}));
  } else g.append(card("Price vs route cash cost",null,el("div",{class:"gap-note"},"No region carries both a populated "+P+" price and a route cash cost."),{src:"17 · 15"}));
  app.append(g);
+
+ // NEW diagnostic: cost–price positioning bubble (bubble = capacity, diagonal = break-even)
+ if(rows.length){
+  const scPts=rows.map(x=>{const rb=rbRow(x.region);const cap=rb&&rb.capacity!=null?rb.capacity:null;return{x:x.cost,y:x.price,r:cap||20,label:x.region.split(" ")[0].replace("United","US"),color:x.margin>=0?"var(--teal)":"var(--neg)",tip:"Price "+usd(x.price)+"<br>Cash cost "+usd(x.cost)+" ("+x.route+")<br>Margin "+signed(x.margin)+"/t"+(cap!=null?"<br>Capacity "+f0(cap)+" Mt":"")};});
+  const sb=el("div",{});
+  sb.append(el("div",{class:"chart-scroll"},scatterChart(scPts,{w:620,h:300,xfmt:usd,yfmt:usd,xlabel:"Route cash-cost floor →",ylabel:P+" observed price",diag:true,diagLabel:"price = cost"})));
+  sb.append(el("p",{class:"mini-note"},"Each bubble is a region; size = crude-steel capacity (Mt). Vertical distance above the dashed price = cost line ≈ margin headroom over the cash-cost floor. Green = positive margin proxy, red = negative."));
+  app.append(el("div",{style:"margin-top:16px"},card("Cost–price positioning (bubble = capacity)","Which regions carry the widest margin over their cash-cost floor?",sb,{status:"Derived",note:"Margin proxy excludes route freight & basis differences."})));
+ }
 
  const g2=el("div",{class:"grid g2",style:"margin-top:16px"});
  // China export monitor
@@ -809,6 +908,7 @@ function pgPrice(app){
  // B. Regional price comparison for selected product
  const rc=el("div",{});
  const regPrices=REGIONS.map(r=>({r,fc:fcRow(r,P)})).filter(x=>x.fc&&x.fc.observed!=null).map(x=>({label:x.r,value:x.fc.observed,color:x.r===R?"var(--steel)":"var(--slate)",hl:x.r===R}));
+ setExport("price_"+P+"_by_region",["Region","Product","Observed_price_USD_t","Data_status"],REGIONS.map(r=>{const fc=fcRow(r,P);return fc&&fc.observed!=null?[r,P,fc.observed,fc.quality]:null;}).filter(Boolean));
  if(regPrices.length){rc.append(hbars(regPrices.sort((a,b)=>b.value-a.value),{w:520,mL:110,vfmt:usd,dim:true}));rc.append(el("p",{class:"mini-note"},"Latest observed "+P+" price by region — where "+R+" sits relative to other markets."));}
  else rc.append(el("div",{class:"gap-note"},"No populated "+P+" prices across regions."));
  g.append(card("Regional price comparison","Expensive or cheap? "+P+" across markets.",rc,{src:"",status:"Actual/Estimated"}));
@@ -899,7 +999,8 @@ function pgTrade(app){
   if(r.rationale&&populated){tr.addEventListener("mousemove",ev=>showTip("<b>"+r.route+"</b> · "+(r.vessel||"")+"<br>"+r.rationale,ev.clientX,ev.clientY));tr.addEventListener("mouseleave",hideTip);tr.style.cursor="help";}
   frb.append(tr);});
  routeTbl.append(frb);
- g.append(card("Freight routes (bulk / breakbulk)","Route-specific steel/ore freight — container rates are not valid for bulk. Hover a row for route drivers.",el("div",{class:"tbl-wrap"},routeTbl),{src:" · SSE + analyst estimates",status:"Actual",note:"5 SSE spot + 7 analyst-estimate lanes (Aug 2026). Container rates excluded."}));
+ setExport("freight_routes",["Route","Vessel_class","Commodity","Low_USD_t","High_USD_t","Mid_USD_t","Status"],M.freight_routes.map(r=>[r.route,r.vessel||"",r.commodity,r.low!=null?r.low:"",r.high!=null?r.high:"",r.freight!=null?r.freight:"",r.status||""]));
+ g.append(card("Freight routes (bulk / breakbulk)","Route-specific steel/ore freight — container rates are not valid for bulk. Search or sort; hover a row for route drivers.",enhanceTable(routeTbl,{search:true,scroll:true,searchPlaceholder:"Search routes / commodity…"}),{src:" · SSE + analyst estimates",status:"Actual",note:"5 SSE spot + 7 analyst-estimate lanes (Aug 2026). Container rates excluded."}));
  app.append(g);
 
  // delivered example competitiveness + product mix
@@ -926,6 +1027,69 @@ function pgTrade(app){
 }
 function kBox(label,val,sub,acc){return el("div",{style:"flex:1;min-width:130px"},el("div",{style:"font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:600"},label),el("div",{style:"font-size:22px;font-weight:650;color:"+(acc?"var(--"+acc+")":"var(--ink)")+";font-variant-numeric:tabular-nums"},val),el("div",{style:"font-size:11px;color:var(--ink-2)"},sub));}
 
+// ---- 10 METHODOLOGY & SOURCES ----
+function defList(items){
+ const d=el("div",{class:"deflist"});
+ items.forEach(it=>{
+  const row=el("div",{class:"defrow"});
+  row.append(el("div",{class:"defterm"},it[0]));
+  const body=el("div",{class:"defbody"},it[1]);
+  if(it[2])body.append(" ",el("a",{href:it[2],target:"_blank",rel:"noopener noreferrer"},"source ↗"));
+  row.append(body);
+  d.append(row);
+ });
+ return d;
+}
+function pgMethod(app){
+ app.append(head("Methodology & Sources","How every derived figure on this dashboard is calculated, the basis and currency conventions applied, what each data-status tag means, and the register of underlying sources. Nothing is estimated beyond what the source model supports — gaps are flagged, never filled with a guess."));
+
+ const eua=M.energy_carbon.cbam_q1_2026, cf=M.energy_carbon.cbam_factor_2026;
+ const defs=[
+  ["Forecast — Base / Bull / Bear","Base = latest observed price × (1 + active global steel-demand growth, "+pct(M.scenarios.drivers[0].active)+"). Bull and Bear apply an illustrative +8% / −10% band around the demand-scaled base. Forecasts are ranges, not point predictions; the workbook does not implement dynamic price sensitivities."],
+  ["Margin proxy","Observed price − lowest route cash cost for the region. A proxy only: cash cost excludes route freight and the price basis is the latest single observation, so it is not a producer margin."],
+  ["Steel-price equation","Delivered price decomposed as route cash cost + implied margin / regional premium. The residual (price − lowest cash cost) is shown as the implied premium, not separately sourced."],
+  ["Route cash-cost curve","Model Level-1 route-level cash cost (BF-BOF, Scrap-EAF, DRI-EAF) built from ore/pellet, coal/coke, scrap, DRI/HBI, energy, electrodes/alloys, carbon and other opex. Excludes route freight. A plant-level (Level-2) curve is not populated in the source model."],
+  ["Import parity (GCC, indicative)","Origin FOB + route freight + GCC import duty (5% on flats & semis; 10% on rebar & wire rod). A positive spread means the domestic price sits that far above landed import parity. Insurance, war-risk and inland logistics are not populated, so figures are indicative."],
+  ["Market regime","Classified from visible variables only — Tightening if net trade > +15 Mt and utilisation > 82%; Oversupplied if net trade < −10 Mt or utilisation < 70%; otherwise Balanced. Inventory is excluded (not populated)."],
+  ["CBAM cost","CO₂ intensity (t CO₂ / t crude steel) × EUA price (€"+eua+"/t) × phase-in factor ("+pct(cf,1)+" in 2026, rising to 100% by 2034)."],
+  ["Capacity realisation","Announced capacity is discounted, not assumed built: announced converts at 50%, under-construction at 85% under the Base scenario. Reported as effective operating + realised pipeline ("+f0(M.capacity.effective_operating_plus_realised)+" Mt)."],
+  ["Assumption dispersion","Ranks drivers by the Bull–Bear spread relative to Base. This is a dispersion measure, not a sensitivity — the workbook does not compute impact-on-output, so it is labelled as such."],
+ ];
+ app.append(card("Definitions & calculation rules","Every derived metric on the dashboard, with its exact formula and stated limitations.",defList(defs),{status:"Derived"}));
+
+ const basis=[
+  ["Benchmark splice","The HRC benchmark is the workbook series to Sep 2025, continued with Argus HRC FOB China from Oct 2025 — one continuous FOB-China basis, spliced at the boundary and marked on the trend chart."],
+  ["Price basis","Cross-region price levels mix incoterms (FOB, CFR, EXW, CPT) and vintages; they indicate relative positioning, not strict arbitrage. Unlike bases are not normalised."],
+  ["Currency conversion","Local-currency source prices are converted to USD/t at the conversion assumptions applied during data build: EUR/USD ≈ 1.08, USD/INR ≈ 88, CNY/USD ≈ 6.74. US prices quoted per short ton are converted to metric tonnes (÷ 0.9072)."],
+  ["Units","Volumes in million tonnes (Mt); prices in USD per metric tonne unless stated; CO₂ in tonnes CO₂ per tonne crude steel."],
+ ];
+ app.append(el("div",{style:"margin-top:16px"},card("Basis & currency conventions","The benchmark splice, incoterm caveats and the FX / unit conversions applied.",defList(basis),{status:"Actual"})));
+
+ const tags=[
+  ["Actual","Observed or assessed value carried directly in the source workbook or by a named external assessor (Argus, worldsteel, GEM, SSE)."],
+  ["Estimated","External secondary or analyst figure used where the workbook leaves the field blank; ranges reflect source uncertainty."],
+  ["Derived","Computed on this dashboard from populated inputs (margin proxy, import parity, market regime, cost curve) — transparent formula, no new data introduced."],
+  ["Forecast / Scenario","Scenario-derived range (Base / Bull / Bear), explicitly not a point prediction."],
+  ["Input req","A field the model defines but leaves for the user to populate — shown as a flagged gap, never filled with a guess."],
+ ];
+ const tagBody=el("div",{class:"deflist"});
+ tags.forEach(t=>{const row=el("div",{class:"defrow"});row.append(el("div",{class:"defterm"},tagEl(t[0]==="Forecast / Scenario"?"Forecast":t[0]==="Input req"?"INPUT":t[0])));row.append(el("div",{class:"defbody"},t[0]+" — "+t[1]));tagBody.append(row);});
+ app.append(el("div",{style:"margin-top:16px"},card("Data-status tags","What each provenance tag on a card or KPI means.",tagBody,{status:"Actual"})));
+
+ const sources=[
+  ["Primary model","Global Steel Physical Balance & Pricing Framework, Issue 02 — the uploaded workbook. Sole source of truth for the cost curve, regional balance, capacity, scenarios and populated forecasts.",null],
+  ["HRC benchmark continuation","Argus HRC FOB China assessment (Oct 2025 → Aug 2026), spliced to the workbook benchmark on the same FOB-China basis.","https://www.argusmedia.com"],
+  ["Steel production & CO₂ intensity","World Steel Association (worldsteel) — DRI production and route CO₂ intensities.","https://worldsteel.org"],
+  ["Capacity & project pipeline","Global Energy Monitor — Global Steel Plant Tracker (operating capacity and plant-level pipeline by status).","https://globalenergymonitor.org"],
+  ["Freight","Shanghai Shipping Exchange (SSE) spot lanes for the populated routes, plus analyst-estimate lanes where SSE does not quote the lane.",null],
+  ["Carbon / CBAM","EU Carbon Border Adjustment Mechanism parameters (EUA price and phase-in factor).","https://taxation-customs.ec.europa.eu/carbon-border-adjustment-mechanism_en"],
+  ["GCC policy & demand (external context)","Import-tariff schedules and rebar demand / supply drawn from secondary market research — labelled external context on the GCC page, not workbook model data.",null],
+ ];
+ app.append(el("div",{style:"margin-top:16px"},card("Source register","The underlying data, conversion and comparison sources behind the dashboard.",defList(sources),{status:"Actual",note:"External links open in a new tab. Where no link is shown, the source is a proprietary assessment or the uploaded workbook."})));
+
+ app.append(el("div",{style:"margin-top:16px"},insight("This dashboard rebuilds the analytical surface from the Issue 02 workbook while keeping strict provenance discipline: observed values are tagged Actual, computed values Derived, and anything the model leaves blank is flagged rather than estimated. Forecasts are demand-scaled ranges, not predictions, and every cross-region comparison carries its basis caveat.","Methodology mirrors the model's own conservatism — where a component (freight, insurance, inventory, parity spread) is not populated, it is excluded and named, not proxied.")));
+}
+
 // ================= SHELL =================
 function renderNav(){const nav=$("#nav");nav.innerHTML="";PAGES.forEach(p=>{const b=el("button",{class:state.page===p.id?"active":"",onclick:()=>{state.page=p.id;render();}},el("span",{class:"num"},p.num),p.name);nav.append(b);});}
 function renderControls(){
@@ -946,11 +1110,14 @@ function render(){
  const app=$("#app");app.innerHTML="";const page=el("div",{class:"page"});app.append(page);
  // period selector only relevant on pages using history
  $("#ctrlPeriod").style.display=["overview","forecast"].includes(state.page)?"":"none";
+ PAGE_EXPORT=null;
  PAGES.find(p=>p.id===state.page).fn(page);
+ const cb=$("#csvBtn");cb.style.display=PAGE_EXPORT&&PAGE_EXPORT.rows.length?"":"none";if(PAGE_EXPORT)cb.title="Download “"+PAGE_EXPORT.name+".csv” — "+PAGE_EXPORT.rows.length+" rows (this page, current filters)";
  window.scrollTo(0,0);
 }
 $("#asof").innerHTML="Data as of <b>"+M.meta.data_as_of.split(";")[0]+"</b><br>Model build "+M.meta.model_build_date+" · "+M.meta.update_cadence;
 $("#themeBtn").addEventListener("click",()=>{const h=document.documentElement;h.dataset.theme=h.dataset.theme==="dark"?"light":"dark";});
+$("#csvBtn").addEventListener("click",downloadCSV);
 $("#resetBtn").addEventListener("click",()=>{state.product="HRC";state.region="GCC";state.scenario="Base";state.period="Full";render();});
 render();
 
